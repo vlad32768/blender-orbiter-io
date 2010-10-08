@@ -1,3 +1,17 @@
+#################################################################
+## Important!
+## TODO: When importing, the script changes V to 1-V in UVTex, this should be done in export script
+## 
+## TODO: Conversion to Orbiter coord system must be done in export script
+##
+## Conversion from orbiter is: 
+##  1. Coordinate system conversion:z=y ; y=-z; x=-x
+##  2. Triangle backface flipping: tri[1]<->tri[2]
+##  3. UV coord system conversion: v=1-v
+##
+## Conversion to orbiter should be: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
+##
+##################################################################
 bl_addon_info = {
     "name": "Import Orbiter mesh (.msh)",
     "author": "vlad32768",
@@ -18,11 +32,8 @@ import bpy
 import io #file i/o
 
 
-def create_mesh(name,verts,faces):
-    '''Test function that creates mesh'''
-    #name="Test"
-    #verts=((0,0,0),(0,0,1),(0,1,0),(0,1,1),(1,1,1))
-    #faces=((0,1,3,2),(2,3,4))
+def create_mesh(name,verts,faces,norm,uv):
+    '''Function that creates mesh from loaded data'''
 
     me = bpy.data.meshes.new(name+"Mesh")
     ob = bpy.data.objects.new(name, me)
@@ -34,8 +45,24 @@ def create_mesh(name,verts,faces):
     # faces should be [], or you ask for problems
     me.from_pydata(verts,[], faces)
     # Update mesh with new data
+    '''    
+    if norm!=[]:
+        for i in range(len(norm)):
+            me.vertices[i].normal=norm[i]
+            print (me.vertices[i].normal)
+    '''
+    if uv!=[]:
+        #Loading UV tex coords
+        uvtex=me.uv_textures.new()#create uvset
+        print ("lenghts uvtexdata=",len(uvtex.data)," verts=",len(verts))
+        for i in range(len(faces)):
+            uvtex.data[i].uv1=uv[faces[i][0]]
+            uvtex.data[i].uv2=uv[faces[i][1]]
+            uvtex.data[i].uv3=uv[faces[i][2]]
+
     me.update(calc_edges=True)
     return ob
+
 
 #load mesh function
 def load_msh(filename,orbiterpath):
@@ -69,9 +96,12 @@ def load_msh(filename,orbiterpath):
                 s1=file.readline();
                 v1=s1.split()
                 #Reading geometry
-                vtx=[]
-                tri=[]
                 if v1[0]=="GEOM":
+                    vtx=[]
+                    tri=[]
+                    norm=[]
+                    uv=[]
+                    
                     nv=int(v1[1])
                     nt=int(v1[2])
                     print ("Group No:",n_grp," verts=",nv," tris=",nt)
@@ -79,13 +109,23 @@ def load_msh(filename,orbiterpath):
                         s2=file.readline();
                         v2=s2.split();
                         #print(v2);
-                        vtx.append([float(v2[0]),float(v2[1]),float(v2[2])])
-                    for n in range(nt):
+                        # convert from left-handed coord system
+                        #vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #that was straightforward
+                        vtx.append([-float(v2[0]),-float(v2[2]),float(v2[1])])
+                        if len(v2)>3:
+                            #should I convert the normals?
+                            norm.append([float(v2[3]),float(v2[4]),float(v2[5])])
+                        if len(v2)>6:
+                            #in Blender, (0,0) is the upper-left corner. in Orbiter -- lower-left corner. So I must invert V axis
+                            uv.append([float(v2[6]),1.0-float(v2[7])])
+                    for n in range(nt): #read triangles
                         s2=file.readline();
                         v2=s2.split();
-                        tri.append([int(v2[0]),int(v2[1]),int(v2[2])])
-                    print (vtx)
-                    create_mesh("Group"+str(n_grp),vtx,tri)
+                        #tri.append([int(v2[0]),int(v2[1]),int(v2[2])]) #non reverted triangle
+                        tri.append([int(v2[0]),int(v2[2]),int(v2[1])]) #reverted triangle
+                    #print (vtx)
+                    #print(norm)
+                    create_mesh("Group"+str(n_grp),vtx,tri,norm,uv)
 
                     n_grp=n_grp+1;
 
@@ -131,9 +171,6 @@ class IMPORT_OT_msh(bpy.types.Operator):
         wm=context.window_manager
         wm.add_fileselect(self)
         return {"RUNNING_MODAL"}
-
-
-
 
 def menu_function(self,context):
     self.layout.operator(IMPORT_OT_msh.bl_idname, text="Orbiter Mesh (.msh)")
