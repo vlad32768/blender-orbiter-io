@@ -18,12 +18,11 @@ import bpy
 import io #file i/o
 
 
-def test_create_mesh():
+def create_mesh(name,verts,faces):
     '''Test function that creates mesh'''
-    name="Test"
-    verts=((0,0,0),(0,0,1),(0,1,0),(0,1,1),(1,1,1))
-    faces=((0,1,3,2),(2,3,4))
-
+    #name="Test"
+    #verts=((0,0,0),(0,0,1),(0,1,0),(0,1,1),(1,1,1))
+    #faces=((0,1,3,2),(2,3,4))
 
     me = bpy.data.meshes.new(name+"Mesh")
     ob = bpy.data.objects.new(name, me)
@@ -38,11 +37,10 @@ def test_create_mesh():
     me.update(calc_edges=True)
     return ob
 
-
+#load mesh function
 def load_msh(filename,orbiterpath):
     '''Read MSH file'''
     print("filepath=",filename,"orbiterpath=",orbiterpath)
-    test_create_mesh()
 
     file=open(filename,"r")
     s=file.readline();
@@ -51,11 +49,58 @@ def load_msh(filename,orbiterpath):
         return
     else:
         print("Orbiter mesh format detected ")
-    
-    while s!='':
+    n_groups=n_grp=0
+    groups=[]
+    n_materials=n_mat=0
+    mat=[]
+    n_textures=n_tex=0
+    tex=[]
+    while True:
         s=file.readline()
-        print(s,end='')
-    
+        if s=='': 
+            break;
+        v=s.split()
+        #print (v)
+        #Reading GROUPS section
+        if v[0]=="GROUPS":
+            print("Reading groups:")
+            n_groups=int(v[1]);
+            while n_grp<n_groups:
+                s1=file.readline();
+                v1=s1.split()
+                #Reading geometry
+                vtx=[]
+                tri=[]
+                if v1[0]=="GEOM":
+                    nv=int(v1[1])
+                    nt=int(v1[2])
+                    print ("Group No:",n_grp," verts=",nv," tris=",nt)
+                    for n in range(nv):
+                        s2=file.readline();
+                        v2=s2.split();
+                        #print(v2);
+                        vtx.append([float(v2[0]),float(v2[1]),float(v2[2])])
+                    for n in range(nt):
+                        s2=file.readline();
+                        v2=s2.split();
+                        tri.append([int(v2[0]),int(v2[1]),int(v2[2])])
+                    print (vtx)
+                    create_mesh("Group"+str(n_grp),vtx,tri)
+
+                    n_grp=n_grp+1;
+
+        #Reading MATERIALS section        
+        elif v[0]=="MATERIALS":
+            n_materials=v[1]
+        #Reading TEXTURES section
+        elif v[0]=="TEXTURES":
+            n_textures=v[1];
+            
+
+        #print(s,end='')
+   
+    print("");
+    print("Summary: groups=",n_groups," materials=",n_materials," textures=",n_textures)
     #file 
     file.close()
 
