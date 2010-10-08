@@ -154,6 +154,8 @@ def load_msh(filename,orbiterpath,convert_coords):
                 s1=file.readline();
                 v1=s1.split()
 
+                if v1[0]=="NONORMAL":
+                    print("NONORMAL!")
                 if v1[0]=="LABEL":
                     label=v1[1]
                 if v1[0]=="MATERIAL":
@@ -179,16 +181,22 @@ def load_msh(filename,orbiterpath,convert_coords):
                             vtx.append([-float(v2[0]),-float(v2[2]),float(v2[1])])# convert from left-handed coord system
                         else: 
                             vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #without conversion 
-                        if len(v2)>3:
+                        if len(v2)>5: #there are normals (not vtx+uvs only)
                             #should I convert the normals?
                             norm.append([float(v2[3]),float(v2[4]),float(v2[5])])
-                        if len(v2)>6:
+                        if len(v2)==8: #there are normals and uvs
                             if convert_coords:
                                 #in Blender, (0,0) is the upper-left corner. 
                                 #in Orbiter -- lower-left corner. So I must invert V axis
                                 uv.append([float(v2[6]),1.0-float(v2[7])])    
                             else:
                                 uv.append([float(v2[6]),float(v2[7])])
+                        elif len(v2)==5: #there are only uvs
+                            if convert_coords:
+                                uv.append([float(v2[3]),1.0-float(v2[4])])    
+                            else:
+                                uv.append([float(v2[3]),float(v2[4])])
+
                     for n in range(nt): #read triangles
                         s2=file.readline();
                         v2=s2.split();
