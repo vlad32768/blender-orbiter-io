@@ -30,7 +30,8 @@ This script imports Orbiter mesh file into Blender
 import bpy
 
 import io #file i/o
-
+import os
+import ntpath
 
 def create_mesh(name,verts,faces,norm,uv):
     '''Function that creates mesh from loaded data'''
@@ -45,12 +46,14 @@ def create_mesh(name,verts,faces,norm,uv):
     # faces should be [], or you ask for problems
     me.from_pydata(verts,[], faces)
     # Update mesh with new data
+    
     '''    
     if norm!=[]:
         for i in range(len(norm)):
             me.vertices[i].normal=norm[i]
             print (me.vertices[i].normal)
     '''
+
     if uv!=[]:
         #Loading UV tex coords
         uvtex=me.uv_textures.new()#create uvset
@@ -64,8 +67,57 @@ def create_mesh(name,verts,faces,norm,uv):
     return ob
 
 
+def create_materials(groups,materials,textures,orbiterpath):
+    #counting material/texture combinations
+    print("Creating materials")
+    matpairset=set()
+    matpair=[]          # [(mat,tex),[mgroups...]]  Unique mat+tex and corresponding groups
+    for n in range(len(groups)):
+        l=(groups[n][1],groups[n][2])
+        #print(l)
+        if l not in matpairset:
+            matpairset.add(l)
+            matpair.append([l,[]]) #fill unique mat+tex combination
+    for n in range(len(groups)):
+        l=(groups[n][1],groups[n][2])
+        for i in range(len(matpair)):
+            if l==matpair[i][0]:
+                matpair[i][1].append(n) #fill array of corresponding groups
+
+
+    print("\nUnique pairs:\n",matpairset)
+    print(matpair)
+    
+    #create textures
+    print("creating textures")
+    for n in range(len(textures)):
+        v=ntpath.split(textures[n][0])
+        print(v);
+        fpath=orbiterpath
+        for i in v:
+            fpath=fpath+"/"+i
+        print (fpath)
+        #tx=bpy.data.textures.new(textures[n][1])
+
+        #tx.image.source="FILE" 
+        #tx.image.filepath=fpath
+    
+    print("creating materials") 
+    for pair in matpair:
+        #create material object
+        idx_mat=pair[0][0]-1
+        idx_tex=pair[0][1]-1
+        print("idx_mat=",idx_mat)
+        print("mat_name=",materials[idx_mat][0])
+        print("diff=",materials[idx_mat][1][:3])
+        print("tex=",textures[idx_tex][1],"idx=",idx_tex)
+        #matt=bpy.data.materials.new(materials[idx_mat][0])
+        #matt.diffuse_color=materials[idx_mat][1][:3]
+        #if idx_tex>=0: matt.texture_slots["Tex"].name=textures[idx_tex][1]
+    
+
 #load mesh function
-def load_msh(filename,orbiterpath):
+def load_msh(filename,orbiterpath,convert_coords):
     '''Read MSH file'''
     print("filepath=",filename,"orbiterpath=",orbiterpath)
 
@@ -76,25 +128,39 @@ def load_msh(filename,orbiterpath):
         return
     else:
         print("Orbiter mesh format detected ")
-    n_groups=n_grp=0
-    groups=[]
-    n_materials=n_mat=0
-    mat=[]
-    n_textures=n_tex=0
-    tex=[]
+    n_groups=0  #N of groups from header
+    n_materials=0   #N of mats from header
+    n_textures=0    #N of texs from header
+    n_grp=0         #real N of groups
+    mat=[]          #mats in group (int)
+    tex=[]          #texs in group (int)
+    groups=[]       #groups description [label(str),mat(int),tex(int),nv(int),nt(int)]
+    materials=[]    #materials description [name,[diff RGBA],[amb RGBA],[spec RGBAP],[emit RGBA]]
+    textures=[]     #[texture filename, texture name]
     while True:
         s=file.readline()
         if s=='': 
             break;
         v=s.split()
         #print (v)
-        #Reading GROUPS section
+        #------Reading GROUPS section-------------
         if v[0]=="GROUPS":
             print("Reading groups:")
             n_groups=int(v[1]);
+            
+            n_mat=0; n_tex=0 #group material and texture
+            label=""
             while n_grp<n_groups:
                 s1=file.readline();
                 v1=s1.split()
+
+                if v1[0]=="LABEL":
+                    label=v1[1]
+                if v1[0]=="MATERIAL":
+                    n_mat=int(v1[1])  #1..n
+                if v1[0]=="TEXTURE":
+                    n_tex=int(v1[1])    #1..n
+
                 #Reading geometry
                 if v1[0]=="GEOM":
                     vtx=[]
@@ -104,46 +170,80 @@ def load_msh(filename,orbiterpath):
                     
                     nv=int(v1[1])
                     nt=int(v1[2])
-                    print ("Group No:",n_grp," verts=",nv," tris=",nt)
+                    #print ("Group No:",n_grp," verts=",nv," tris=",nt)
                     for n in range(nv):
                         s2=file.readline();
                         v2=s2.split();
                         #print(v2);
-                        # convert from left-handed coord system
-                        #vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #that was straightforward
-                        vtx.append([-float(v2[0]),-float(v2[2]),float(v2[1])])
+                        if convert_coords:
+                            vtx.append([-float(v2[0]),-float(v2[2]),float(v2[1])])# convert from left-handed coord system
+                        else: 
+                            vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #without conversion 
                         if len(v2)>3:
                             #should I convert the normals?
                             norm.append([float(v2[3]),float(v2[4]),float(v2[5])])
                         if len(v2)>6:
-                            #in Blender, (0,0) is the upper-left corner. in Orbiter -- lower-left corner. So I must invert V axis
-                            uv.append([float(v2[6]),1.0-float(v2[7])])
+                            if convert_coords:
+                                #in Blender, (0,0) is the upper-left corner. 
+                                #in Orbiter -- lower-left corner. So I must invert V axis
+                                uv.append([float(v2[6]),1.0-float(v2[7])])    
+                            else:
+                                uv.append([float(v2[6]),float(v2[7])])
                     for n in range(nt): #read triangles
                         s2=file.readline();
                         v2=s2.split();
-                        #tri.append([int(v2[0]),int(v2[1]),int(v2[2])]) #non reverted triangle
-                        tri.append([int(v2[0]),int(v2[2]),int(v2[1])]) #reverted triangle
+                        if convert_coords:
+                            tri.append([int(v2[0]),int(v2[2]),int(v2[1])]) #reverted triangle
+                        else:
+                            tri.append([int(v2[0]),int(v2[1]),int(v2[2])]) #non reverted triangle
                     #print (vtx)
                     #print(norm)
-                    create_mesh("Group"+str(n_grp),vtx,tri,norm,uv)
-
                     n_grp=n_grp+1;
-
-        #Reading MATERIALS section        
+                    if label=='':
+                        label="ORBGroup"+str(n_grp)
+                    create_mesh(label,vtx,tri,norm,uv)
+                    if n_mat!=0:
+                        mat.append(n_mat)
+                    if n_tex!=0:
+                        tex.append(n_tex)
+                    groups.append([label,n_mat,n_tex,nv,nt])
+                    label=""
+        #--------------Reading MATERIALS section-----------------------        
         elif v[0]=="MATERIALS":
-            n_materials=v[1]
-        #Reading TEXTURES section
+            n_materials=int(v[1])
+            #material names
+            for i in range (n_materials):
+                materials.append([file.readline().strip()])
+            #material properties
+            for i in range (n_materials):
+                file.readline(); # TODO: name checking
+                for n in range(4):
+                    s1=file.readline()
+                    v1=s1.split()
+                    if n==2: #Specular,5 components
+                        materials[i].append([float(v1[0]),float(v1[1]),float(v1[2]),float(v1[3]),float(v1[4])])
+                    else:   #Other, 4 components
+                        materials[i].append([float(v1[0]),float(v1[1]),float(v1[2]),float(v1[3])])
+        #---------------Reading TEXTURES section------------------
         elif v[0]=="TEXTURES":
-            n_textures=v[1];
-            
+            n_textures=int(v[1]);
+            for i in range(n_textures):
+                textures.append([file.readline().strip(),"ORBTexture"+str(i)])
+       
 
-        #print(s,end='')
    
     print("");
-    print("Summary: groups=",n_groups," materials=",n_materials," textures=",n_textures)
+    print("==========================Summary===========================================")
+    print("Headers: groups=",n_groups," materials=",n_materials," textures=",n_textures)
+    print("\nData:\nGroups:")
+    print(groups,"\nReal No=",len(groups))
+    print("Materials:",materials) 
+    print("Textures:",textures)
+    print("Materials in groups:",mat)
+    print("Textures in groups:",tex)
     #file 
     file.close()
-
+    create_materials(groups,materials,textures,orbiterpath)
     return{"FINISHED"}
 
 #for operator class properties
@@ -159,11 +259,14 @@ class IMPORT_OT_msh(bpy.types.Operator):
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
     
     #orbiterpath default for testing
-    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default="~/programs/orbiter", subtype="DIR_PATH")
+    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default="home/vlad/programs/orbiter", subtype="DIR_PATH")
+    
+    convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
+
 
     def execute(self,context):
         print("execute")
-        load_msh(self.filepath,self.orbiterpath)
+        load_msh(self.filepath,self.orbiterpath,self.convert_coords)
         return{"FINISHED"}
 
     def invoke(self,context,event):
@@ -177,13 +280,11 @@ def menu_function(self,context):
     
 
 def register():
-    #bpy.types.register(MyOperator)
     print("registering...")
     bpy.types.INFO_MT_file_import.append(menu_function)
  
 def unregister():
     print("unregistering...")
-    #bpy.types.unregister(MyOperator)
     bpy.types.INFO_MT_file_import.remove(menu_function)
  
 if __name__ == "__main__":
