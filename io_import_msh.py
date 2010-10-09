@@ -89,20 +89,26 @@ def create_materials(groups,materials,textures,orbiterpath):
     print(matpair)
     
     #create textures
+    tx=[]
     print("creating textures")
     for n in range(len(textures)):
         v=ntpath.split(textures[n][0])
         print(v);
-        fpath=orbiterpath
+        fpath=orbiterpath+"/Textures"
         for i in v:
             fpath=fpath+"/"+i
         print (fpath)
-        #tx=bpy.data.textures.new(textures[n][1])
 
-        #tx.image.source="FILE" 
-        #tx.image.filepath=fpath
+        img=bpy.data.images.load(fpath)
+        
+        tx.append(bpy.data.textures.new(textures[n][1],"IMAGE"))
+        tx[n].image=img
+        tx[n].use_alpha=True
+
     
     print("creating materials") 
+    n=0
+    matt=[]
     for pair in matpair:
         #create material object
         idx_mat=pair[0][0]-1
@@ -111,9 +117,24 @@ def create_materials(groups,materials,textures,orbiterpath):
         print("mat_name=",materials[idx_mat][0])
         print("diff=",materials[idx_mat][1][:3])
         print("tex=",textures[idx_tex][1],"idx=",idx_tex)
-        #matt=bpy.data.materials.new(materials[idx_mat][0])
-        #matt.diffuse_color=materials[idx_mat][1][:3]
+        matt.append(bpy.data.materials.new(materials[idx_mat][0]))
+        matt[n].diffuse_color=materials[idx_mat][1][:3]
         #if idx_tex>=0: matt.texture_slots["Tex"].name=textures[idx_tex][1]
+        
+        #matt[n].add_texture(texture=tx[idx_tex],texture_coordinates='UV',map_to='COLOR')
+        if idx_tex>=0:
+            mtex=matt[n].texture_slots.add()
+            mtex.texture=tx[idx_tex]
+            mtex.texture_coords="UV" 
+            #mtex.map_colordiff = True
+            #mtex.map_alpha = True
+            #mtex.map_coloremission = True
+            #mtex.map_density = True
+            #mtex.mapping = 'FLAT'
+
+        for grp_idx in pair[1]:
+            groups[grp_idx][5].data.materials.append(matt[n])
+        n=n+1
     
 
 #load mesh function
@@ -134,7 +155,7 @@ def load_msh(filename,orbiterpath,convert_coords):
     n_grp=0         #real N of groups
     mat=[]          #mats in group (int)
     tex=[]          #texs in group (int)
-    groups=[]       #groups description [label(str),mat(int),tex(int),nv(int),nt(int)]
+    groups=[]       #groups description [label(str),mat(int),tex(int),nv(int),nt(int),obj(bpy.data.object)]
     materials=[]    #materials description [name,[diff RGBA],[amb RGBA],[spec RGBAP],[emit RGBA]]
     textures=[]     #[texture filename, texture name]
     while True:
@@ -154,8 +175,8 @@ def load_msh(filename,orbiterpath,convert_coords):
                 s1=file.readline();
                 v1=s1.split()
 
-                if v1[0]=="NONORMAL":
-                    print("NONORMAL!")
+                #if v1[0]=="NONORMAL":
+                #    print("NONORMAL!")
                 if v1[0]=="LABEL":
                     label=v1[1]
                 if v1[0]=="MATERIAL":
@@ -209,16 +230,17 @@ def load_msh(filename,orbiterpath,convert_coords):
                     n_grp=n_grp+1;
                     if label=='':
                         label="ORBGroup"+str(n_grp)
-                    create_mesh(label,vtx,tri,norm,uv)
+                    obj=create_mesh(label,vtx,tri,norm,uv)
                     if n_mat!=0:
                         mat.append(n_mat)
                     if n_tex!=0:
                         tex.append(n_tex)
-                    groups.append([label,n_mat,n_tex,nv,nt])
+                    groups.append([label,n_mat,n_tex,nv,nt,obj])
                     label=""
         #--------------Reading MATERIALS section-----------------------        
         elif v[0]=="MATERIALS":
             n_materials=int(v[1])
+            print("-------Reading Materials section,nmats=",n_materials,"------------")
             #material names
             for i in range (n_materials):
                 materials.append([file.readline().strip()])
@@ -228,7 +250,8 @@ def load_msh(filename,orbiterpath,convert_coords):
                 for n in range(4):
                     s1=file.readline()
                     v1=s1.split()
-                    if n==2: #Specular,5 components
+                    print("Reading material component,n=",n,"  comp=",v1)
+                    if (n==2)and(len(v1)==5): #Specular,5 components
                         materials[i].append([float(v1[0]),float(v1[1]),float(v1[2]),float(v1[3]),float(v1[4])])
                     else:   #Other, 4 components
                         materials[i].append([float(v1[0]),float(v1[1]),float(v1[2]),float(v1[3])])
@@ -267,7 +290,7 @@ class IMPORT_OT_msh(bpy.types.Operator):
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
     
     #orbiterpath default for testing
-    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default="home/vlad/programs/orbiter", subtype="DIR_PATH")
+    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default="/home/vlad/programs/orbiter", subtype="DIR_PATH")
     
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
 
