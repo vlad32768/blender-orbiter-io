@@ -1,20 +1,20 @@
-#################################################################
-## Important!
-## TODO: When importing, the script changes V to 1-V in UVTex, this should be done in export script
-## 
-## TODO: Conversion to Orbiter coord system must be done in export script
-##
-## Conversion from orbiter coordinate system is: 
-##  1. Coordinate system conversion:z=y ; y=-z; x=-x
-##  2. Triangle backface flipping: tri[1]<->tri[2]
-##  3. UV coord system conversion: v=1-v
-##
-## Conversion to orbiter should be: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
-##
-##################################################################
 
+# Important notes:
+#
+# 1. You should type the correct Orbiter path. Otherwise, the script won't open the textures. 
+#  You can set ORBITER_PATH_DEFAULT variable here at the beginning, and then re-register the add-on.
+#
+# 2. The script doesn't import vertex normals. It seems that Blender often recalculates vertex normals, so it's useless to import them.
+#
+# 3. Blender uses right-handed coordinate system, Orbiter uses left-handed one. Also, Blender and Orbiter use different UV coord origins
+#  So, the module converts vertex and UV coordinates 
+#  Conversion from orbiter coordinate system is: 
+#  1. Coordinate system conversion:z=y ; y=-z; x=-x
+#  2. Triangle backface flipping: tri[1]<->tri[2]
+#  3. UV coord system conversion: v=1-v
+#  So, conversion to orbiter is: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
 
-ORBITER_PATH_DEFALT="/home/vlad/programs/orbiter" #Change this to your Orbiter path
+ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter" #Change this to your Orbiter path
 
 bl_addon_info = {
     "name": "Import Orbiter mesh (.msh)",
@@ -24,11 +24,11 @@ bl_addon_info = {
     "api": 32391,
     "category": "Import/Export",
     "location": "File > Import > Orbiter mesh (.msh)",
-    "warning": '', # used for warning icon and text in addons panel
+    "warning": 'Beta version', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
     "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
     "description": """\
-This script imports Orbiter mesh file into Blender
+Imports Orbiter mesh file (as well as materials and textures) into Blender. Export feature coming soon.
 """}
 
 import bpy
@@ -37,6 +37,9 @@ import io #file i/o
 import os
 import ntpath
 
+####################################################
+## IMPORT PART
+####################################################
 def create_mesh(name,verts,faces,norm,uv,show_single_sided):
     '''Function that creates mesh from loaded data'''
 
@@ -336,7 +339,7 @@ class IMPORT_OT_msh(bpy.types.Operator):
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
     
     #orbiterpath default for testing
-    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFALT, subtype="DIR_PATH")
+    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFAULT, subtype="DIR_PATH")
     
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
     show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
@@ -352,17 +355,24 @@ class IMPORT_OT_msh(bpy.types.Operator):
         wm.add_fileselect(self)
         return {"RUNNING_MODAL"}
 
-def menu_function(self,context):
+def import_menu_function(self,context):
     self.layout.operator(IMPORT_OT_msh.bl_idname, text="Orbiter Mesh (.msh)")
-    
+############################################################
+## END OF IMPORT PART
+############################################################
+
+
+# TODO: When importing, the script changes V to 1-V in UVTex, this should be done in export script
+# 
+# TODO: Conversion to Orbiter coord system must be done in export script (see description at addon info)
 
 def register():
     print("registering...")
-    bpy.types.INFO_MT_file_import.append(menu_function)
+    bpy.types.INFO_MT_file_import.append(import_menu_function)
  
 def unregister():
     print("unregistering...")
-    bpy.types.INFO_MT_file_import.remove(menu_function)
+    bpy.types.INFO_MT_file_import.remove(import_menu_function)
  
 if __name__ == "__main__":
     register()
