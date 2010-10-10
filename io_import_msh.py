@@ -1,10 +1,13 @@
 
-# Important notes:
+# Notes on .msh import:
 #
-# 1. You should type the correct Orbiter path. Otherwise, the script won't open the textures. 
-#  You can set ORBITER_PATH_DEFAULT variable here at the beginning, and then re-register the add-on.
-#
+# 1. You should import meshes from Orbiter installation. The module will autodedect Orbiter directory and load textures from Orbiter installation.
+#    
 # 2. The script doesn't import vertex normals. It seems that Blender often recalculates vertex normals, so it's useless to import them.
+#
+# 3. If there is one material with different textures in .msh file, the script will create a copy of this material for every texture.
+#
+# 4. There are no ambient and emissive colors in Blender, so the script doesn't import ambient colors and calculates emit component
 #
 # 3. Blender uses right-handed coordinate system, Orbiter uses left-handed one. Also, Blender and Orbiter use different UV coord origins
 #  So, the module converts vertex and UV coordinates 
@@ -14,7 +17,11 @@
 #  3. UV coord system conversion: v=1-v
 #  So, conversion to orbiter is: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
 
-ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter" #Change this to your Orbiter path
+
+ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter installation, it will use this path
+#ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter"
+
+VERBOSE_OUT = False;
 
 bl_addon_info = {
     "name": "Import Orbiter mesh (.msh)",
@@ -24,12 +31,13 @@ bl_addon_info = {
     "api": 32391,
     "category": "Import/Export",
     "location": "File > Import > Orbiter mesh (.msh)",
-    "warning": 'Beta version', # used for warning icon and text in addons panel
+    "warning": 'Beta 1 version', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
     "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
     "description": """\
 Imports Orbiter mesh file (as well as materials and textures) into Blender. Export feature coming soon.
 """}
+
 
 import bpy
 
@@ -40,8 +48,10 @@ import ntpath
 ####################################################
 ## IMPORT PART
 ####################################################
-def create_mesh(name,verts,faces,norm,uv,show_single_sided):
+def create_mesh(name,verts,faces,norm,uv,param_vector):
     '''Function that creates mesh from loaded data'''
+
+    show_single_sided=param_vector[1]
 
     me = bpy.data.meshes.new(name+"Mesh")
     ob = bpy.data.objects.new(name, me)
@@ -79,10 +89,86 @@ def create_mesh(name,verts,faces,norm,uv,show_single_sided):
     me.update(calc_edges=True)
     return ob
 
+def join_case_insensitive(fpath,f):
+    '''
+    helper for find_texture_path()
+    Trying to join filepath case-insensitive in Posix systems
 
-def create_materials(groups,materials,textures,orbiterpath):
-    #counting material/texture combinations
-    print("Creating materials")
+    Returns:    joined path if it finds f
+                "" if it finds nothing
+    ''' 
+    ld=os.listdir(fpath)
+    if f in set(ld): #the names are equal
+        print("Original name is good: ",f)
+        return os.path.join(fpath,f)
+    else:   # case insensitive search in fpath directory
+        for f1 in ld:
+            if f.lower()==f1.lower():
+                print("modified name is good: ",f,"->",f1)
+                return os.path.join(fpath,f1)
+        print ("Cannot find '",f,"' file in ",fpath)
+        return ""
+
+def find_texture_path(orbiterpath,tex_string):
+    '''
+    Finds texture file in texture directories
+    
+    Returns the full texture file path if it exists
+    "" if doesn't
+    '''
+    #perform full split
+    v=[]
+    tempstr=tex_string
+    while True:
+        v1=ntpath.split(tempstr)
+        v.insert(0,v1[1])
+        #print (v1)
+        tempstr=v1[0]
+        if tempstr=="":
+            break
+    print(v);
+    for texdir in ("Textures","Textures2"):
+        fpath=os.path.join(orbiterpath,texdir)
+        if not(os.access(fpath,os.F_OK)):
+            print("WARNING! There isn't '",texdir,"' dir in ",orbiterpath)
+            return ""
+        find_all=True
+        for f in v:
+            # Handle upper/lwercase POSIX problem, buggy if all 2 tex dirs contains the same subdirs
+            if f=="":
+                continue #skip empty ntpath.split() members
+            temppath=join_case_insensitive(fpath,f)
+            if temppath=="":
+                find_all=False
+                if texdir=="Texture2":
+                    print ("Warning! Cannot find '",f,"' file in all 2 directories!")
+                    return ""
+                else:
+                    break #continue with "Textures2" folder
+            else:
+                fpath=temppath
+            # end of upper/lowercase handling
+            #fpath=os.path.join(fpath,f) #Construct path without upper/lowercase handling
+        if find_all:
+            break   # Stop searching
+    if os.access(fpath,os.R_OK)and os.path.isfile(fpath):
+        print ("File exists and can be read:",fpath)
+        return fpath
+    else:   # probably this will never run
+        print ("Warning! File",tex_string," not exists or cannot be read in:",fpath)
+        return ""
+
+def create_materials(groups,materials,textures,orbiterpath,param_vector):
+    '''
+    To create materials, some steps has to be done:
+    1. Create unique material+texture pairs with corresponding mesh groups
+    2. Create textures
+    3. Create materials,assign textures to them if needed, assign materials to mesh groups
+    '''
+
+
+    #1. ==========counting material/texture combinations===========
+    print("-----------Creating materials-----------")
     matpairset=set()
     matpair=[]          # [(mat,tex),[mgroups...]]  Unique mat+tex and corresponding groups
     for n in range(len(groups)):
@@ -99,12 +185,13 @@ def create_materials(groups,materials,textures,orbiterpath):
 
 
     print("\nUnique pairs:\n",matpairset)
-    print(matpair)
+    if VERBOSE_OUT:
+        print(matpair)
     
-    #create textures
-    #TODO: upper/lower case handling in Linux
+    #2.==============create textures=======================
     tx=[]
     tex_load_fails=0
+    print ("lalala",orbiterpath)
     orbiter_path_ok=os.access(orbiterpath,os.F_OK)
     if not(orbiter_path_ok):
         print("Orbiter path is wrong! path=",orbiterpath)
@@ -112,17 +199,15 @@ def create_materials(groups,materials,textures,orbiterpath):
     for n in range(len(textures)):
         tx.append(bpy.data.textures.new(textures[n][1],"IMAGE"))
         if orbiter_path_ok:
-            v=ntpath.split(textures[n][0])
-            print(v);
-            fpath=os.path.join(orbiterpath,"Textures")
-            for i in v:
-                fpath=os.path.join(fpath,i)
-            print (fpath)
+            fpath=find_texture_path(orbiterpath,textures[n][0])
+            if fpath=="":
+                tex_load_fails=tex_load_fails+1
+                continue 
             #Trying to load data
             try:
                 img=bpy.data.images.load(fpath)
             except:
-                print("!!!!!Can not load image: ",fpath)
+                print("Can not load image, file is possibly corrupted : ",fpath)
                 tex_load_fails=tex_load_fails+1
                 continue 
         else:
@@ -131,7 +216,7 @@ def create_materials(groups,materials,textures,orbiterpath):
         tx[n].image=img
         tx[n].use_alpha=True
 
-    
+    #3.=================Create materials=====================    
     print("creating materials") 
     n=0
     matt=[]
@@ -139,10 +224,12 @@ def create_materials(groups,materials,textures,orbiterpath):
         #create material object
         idx_mat=pair[0][0]-1
         idx_tex=pair[0][1]-1
-        print("idx_mat=",idx_mat)
-        print("mat_name=",materials[idx_mat][0])
-        print("diff=",materials[idx_mat][1][:3])
-        print("tex=",textures[idx_tex][1],"idx=",idx_tex)
+        if VERBOSE_OUT:
+            print("idx_mat=",idx_mat)
+            print("mat_name=",materials[idx_mat][0])
+            print("diff=",materials[idx_mat][1][:3])
+            if len(textures)>0:
+                print("tex=",textures[idx_tex][1],"idx=",idx_tex)
         matt.append(bpy.data.materials.new(materials[idx_mat][0]))
         #diffuse component
         matt[n].diffuse_color=materials[idx_mat][1][:3]
@@ -152,10 +239,15 @@ def create_materials(groups,materials,textures,orbiterpath):
         #specular component
         matt[n].specular_color=materials[idx_mat][3][:3]
         matt[n].specular_alpha=materials[idx_mat][3][3]  
-        if len(materials[idx_mat][3])==5:
-            matt[n].specular_hardness=materials[idx_mat][3][4]
         
-        #there aren''t different ambient and emissive color component in blender
+        raise_small_hardness=param_vector[2]
+        default_hardeness=param_vector[3]
+        if len(materials[idx_mat][3])==5:
+            if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
+                matt[n].specular_hardness=default_hardeness
+            else:
+                matt[n].specular_hardness=materials[idx_mat][3][4]
+        #there aren't different ambient and emissive color component in blender
         #ambient is very often equal to diffuse, it's like amb=1.0 in blender
         #Emmissive component:
         import_emmissive=True;
@@ -187,9 +279,38 @@ def create_materials(groups,materials,textures,orbiterpath):
     if tex_load_fails>0:
         print("WARNING! ",tex_load_fails," of ",len(tx)," textures aren't loaded, possibly wrong file name(s)!")
 
+def extract_orbpath_from_filename(fname):
+    '''
+    Extract Orbiter path from file name
+    The function assumes that Orbiter directory is 
+    the parent of the first "Meshes" directory.
+
+    It returns path on success; empty string on fail
+    '''
+    s=fname
+    while True:
+        v=os.path.split(s)
+        s=v[0]
+        if v[1].lower()=="meshes":
+            break
+    if s=='':
+        print("WARNING! Orbiter path not found!")
+    else:
+        print("Orbiter path found: ",s)
+    return s
+        
+
+
 #load mesh function
-def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
+def load_msh(filename,param_vector):
     '''Read MSH file'''
+
+    convert_coords=param_vector[0]
+
+    orbiterpath=ORBITER_PATH_DEFAULT
+    s=extract_orbpath_from_filename(filename)
+    if s!="":
+        orbiterpath=s
     print("filepath=",filename,"orbiterpath=",orbiterpath)
 
     file=open(filename,"r")
@@ -213,6 +334,8 @@ def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
         if s=='': 
             break;
         v=s.split()
+        if len(v)==0:
+            continue # skip empty lines
         #print (v)
         #------Reading GROUPS section-------------
         if v[0]=="GROUPS":
@@ -243,7 +366,8 @@ def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
                     
                     nv=int(v1[1])
                     nt=int(v1[2].rstrip(";"))
-                    #print ("Group No:",n_grp," verts=",nv," tris=",nt)
+                    if VERBOSE_OUT:
+                        print ("Group No:",n_grp," verts=",nv," tris=",nt)
                     for n in range(nv):
                         s2=file.readline();
                         v2=s2.split();
@@ -285,7 +409,7 @@ def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
                     n_grp=n_grp+1;
                     if label=='':
                         label="ORBGroup"+str(n_grp)
-                    obj=create_mesh(label,vtx,tri,norm,uv,show_single_sided)
+                    obj=create_mesh(label,vtx,tri,norm,uv,param_vector)
                     groups.append([label,n_mat,n_tex,nv,nt,obj])
                     label=""
         #--------------Reading MATERIALS section-----------------------        
@@ -301,7 +425,8 @@ def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
                 for n in range(4):
                     s1=file.readline()
                     v1=s1.split()
-                    print("Reading material component,n=",n,"  comp=",v1)
+                    if VERBOSE_OUT:
+                        print("Reading material component,n=",n,"  comp=",v1)
                     if (n==2)and(len(v1)==5): #Specular,5 components
                         materials[i].append([float(v1[0]),float(v1[1]),float(v1[2]),float(v1[3]),float(v1[4])])
                     else:   #Other, 4 components
@@ -311,19 +436,20 @@ def load_msh(filename,orbiterpath,convert_coords,show_single_sided):
             print("-----------Reading TEXTURES section---------------")
             n_textures=int(v[1]);
             for i in range(n_textures):
-                textures.append([file.readline().strip(),"ORBTexture"+str(i)])
+                textures.append([file.readline().split()[0],"ORBTexture"+str(i)]) #split to get rid of "D"s
        
 
    
     print("");
     print("==========================Summary===========================================")
     print("Headers: groups=",n_groups," materials=",n_materials," textures=",n_textures)
-    print("\nData:\nGroups:")
-    print(groups,"\nReal No=",len(groups))
-    print("Materials:",materials) 
-    print("Textures:",textures)
+    if VERBOSE_OUT: 
+        print("\nData:\n-----------Groups:------------\n",groups)
+        print("-----------------Materials:------------\n",materials) 
+        print("------------------Textures:------------\n",textures)
+    print("\nReal groups No=",len(groups))
     file.close() #end reading file
-    create_materials(groups,materials,textures,orbiterpath)
+    create_materials(groups,materials,textures,orbiterpath,param_vector)
     return{"FINISHED"}
 
 #for operator class properties
@@ -338,15 +464,17 @@ class IMPORT_OT_msh(bpy.types.Operator):
     
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
     
-    #orbiterpath default for testing
-    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFAULT, subtype="DIR_PATH")
+    #orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFAULT, subtype="DIR_PATH")
     
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
     show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
+    raise_small_hardness= BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
+    default_hardness=IntProperty(name="Hardness",description="Smallest hardness",default=20)
 
     def execute(self,context):
         print("execute")
-        load_msh(self.filepath,self.orbiterpath,self.convert_coords,self.show_single_sided)
+        param_vector=[self.convert_coords,self.show_single_sided,self.raise_small_hardness,self.default_hardness]
+        load_msh(self.filepath,param_vector)
         return{"FINISHED"}
 
     def invoke(self,context,event):
