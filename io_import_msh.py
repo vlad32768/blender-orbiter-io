@@ -4,7 +4,7 @@
 ## 
 ## TODO: Conversion to Orbiter coord system must be done in export script
 ##
-## Conversion from orbiter is: 
+## Conversion from orbiter coordinate system is: 
 ##  1. Coordinate system conversion:z=y ; y=-z; x=-x
 ##  2. Triangle backface flipping: tri[1]<->tri[2]
 ##  3. UV coord system conversion: v=1-v
@@ -13,15 +13,15 @@
 ##
 ##################################################################
 
-#TODO: better texture path handling: multiplatform and upper/lower case handling in Linux
-#TODO: Just skip texture load if the path is wrong.
+
+ORBITER_PATH_DEFALT="/home/vlad/programs/orbiter" #Change this to your Orbiter path
 
 bl_addon_info = {
     "name": "Import Orbiter mesh (.msh)",
     "author": "vlad32768",
     "version": (1,0),
     "blender": (2, 5, 4),
-    "api": 31236,
+    "api": 32391,
     "category": "Import/Export",
     "location": "File > Import > Orbiter mesh (.msh)",
     "warning": '', # used for warning icon and text in addons panel
@@ -99,22 +99,30 @@ def create_materials(groups,materials,textures,orbiterpath):
     print(matpair)
     
     #create textures
+    #TODO: upper/lower case handling in Linux
     tx=[]
     tex_load_fails=0
+    orbiter_path_ok=os.access(orbiterpath,os.F_OK)
+    if not(orbiter_path_ok):
+        print("Orbiter path is wrong! path=",orbiterpath)
     print("creating textures")
     for n in range(len(textures)):
-        v=ntpath.split(textures[n][0])
-        print(v);
-        fpath=orbiterpath+"/Textures"
-        for i in v:
-            fpath=fpath+"/"+i
-        print (fpath)
-        
         tx.append(bpy.data.textures.new(textures[n][1],"IMAGE"))
-        try:
-            img=bpy.data.images.load(fpath)
-        except:
-            print("!!!!!Can not load image: ",fpath)
+        if orbiter_path_ok:
+            v=ntpath.split(textures[n][0])
+            print(v);
+            fpath=os.path.join(orbiterpath,"Textures")
+            for i in v:
+                fpath=os.path.join(fpath,i)
+            print (fpath)
+            #Trying to load data
+            try:
+                img=bpy.data.images.load(fpath)
+            except:
+                print("!!!!!Can not load image: ",fpath)
+                tex_load_fails=tex_load_fails+1
+                continue 
+        else:
             tex_load_fails=tex_load_fails+1
             continue
         tx[n].image=img
@@ -169,6 +177,10 @@ def create_materials(groups,materials,textures,orbiterpath):
     print("=============Materials creation summary:=================")
     print("Created ",n," materials,")
     print("Loaded ",len(tx)-tex_load_fails," textures.")
+    if not(orbiter_path_ok):
+        print("WARNING! Orbiter path is wrong or not accessible, textures cannot be loaded!")
+        print("Wrong path=",orbiterpath)
+
     if tex_load_fails>0:
         print("WARNING! ",tex_load_fails," of ",len(tx)," textures aren't loaded, possibly wrong file name(s)!")
 
@@ -324,7 +336,7 @@ class IMPORT_OT_msh(bpy.types.Operator):
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
     
     #orbiterpath default for testing
-    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default="/home/vlad/programs/orbiter", subtype="DIR_PATH")
+    orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFALT, subtype="DIR_PATH")
     
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
     show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
