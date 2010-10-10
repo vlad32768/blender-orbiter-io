@@ -9,7 +9,10 @@
 #
 # 4. There are no ambient and emissive colors in Blender, so the script doesn't import ambient colors and calculates emit component
 #
-# 3. Blender uses right-handed coordinate system, Orbiter uses left-handed one. Also, Blender and Orbiter use different UV coord origins
+# 5. Some models (for example DGIV and DG-XR) have got materials with shiny specular and zero hardness. That doesn't look good in blender. 
+#    You can use "Raise small hardness" parameter in file import dialog to set minimal hardness manually
+#
+# 6. Blender uses right-handed coordinate system, Orbiter uses left-handed one. Also, Blender and Orbiter use different UV coord origins
 #  So, the module converts vertex and UV coordinates 
 #  Conversion from orbiter coordinate system is: 
 #  1. Coordinate system conversion:z=y ; y=-z; x=-x
@@ -441,7 +444,7 @@ def load_msh(filename,param_vector):
 
    
     print("");
-    print("==========================Summary===========================================")
+    print("==========================File reading summary====================================")
     print("Headers: groups=",n_groups," materials=",n_materials," textures=",n_textures)
     if VERBOSE_OUT: 
         print("\nData:\n-----------Groups:------------\n",groups)
