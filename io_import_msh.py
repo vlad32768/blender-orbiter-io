@@ -509,20 +509,54 @@ def import_menu_function(self,context):
 ## EXPORT PART
 ############################################################
 
-def export_msh(filepath)
+def export_msh(filepath):
     file=open(filepath,"w")
-    faces=[]
-    for obj in bpy.context.selected_object:
-        if obj.type='MESH'
+    file.write("MSHX1\n")
+    ngroups=0 
+    for obj in bpy.context.selected_objects:
+        if obj.type=='MESH':
+            ngroups=ngroups+1
+
+    file.write("GROUPS {}\n".format(ngroups))
+    
+    for obj in bpy.context.selected_objects:
+        if obj.type=='MESH':
             matrix=obj.matrix_world
             me=obj.data
+            n=0
+            vtx=[]
+            faces=[]
             for face in me.faces:
-                fv = []
                 for i in face.vertices_raw:
-                    fv.append(matrix * mesh.vertices[i].co)
+                    vtx.append(matrix * me.vertices[i].co)
+                    
+                temp=3*len(faces)
+                faces.append([0+temp,1+temp,2+temp])
+                if len(face.vertices_raw)==4:
+                    print("tetragon")
+                    faces.append([2+temp,3+temp,0+temp])
 
                 #uvtex=me.uv_textures[0]
-                    
+            #write GEOM section 
+            file.write("LABEL aaa\n")
+            file.write("MATERIAL 0\n")
+            file.write("NONORMAL\n")
+            file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
+            for v in vtx:
+                file.write("{} {} {}\n".format(v[0],v[1],v[2]))
+            for f in faces:
+                file.write("{} {} {}\n".format(f[0],f[1],f[2]))
+    #write other sections
+    file.write("MATERIALS 1\n")
+    file.write("matname\n")
+    file.write("MATERIAL matname\n")
+    file.write("1.0 1.0 1.0 1.0\n")
+    file.write("1.0 1.0 1.0 1.0\n")
+    file.write("1.0 1.0 1.0 1.0 40\n")
+    file.write("0.0 0.0 0.0 1.0\n")
+    file.write("TEXTURES 0\n")
+
+    file.close()                
 
 
 class EXPORT_OT_msh(bpy.types.Operator):
@@ -535,7 +569,7 @@ class EXPORT_OT_msh(bpy.types.Operator):
     
     def execute(self,context):
         print("Export execute")
-        export_msh(filepath)
+        export_msh(self.filepath)
         return {"FINISHED"}
 
     def invoke(self,context,event):
