@@ -505,6 +505,50 @@ def import_menu_function(self,context):
 ## END OF IMPORT PART
 ############################################################
 
+############################################################
+## EXPORT PART
+############################################################
+
+def export_msh(filepath)
+    file=open(filepath,"w")
+    faces=[]
+    for obj in bpy.context.selected_object:
+        if obj.type='MESH'
+            matrix=obj.matrix_world
+            me=obj.data
+            for face in me.faces:
+                fv = []
+                for i in face.vertices_raw:
+                    fv.append(matrix * mesh.vertices[i].co)
+
+                #uvtex=me.uv_textures[0]
+                    
+
+
+class EXPORT_OT_msh(bpy.types.Operator):
+    '''Export MSH Operator'''
+    bl_idname="export_mesh.msh"
+    bl_label="Export MSH"
+    bl_descriptiom="Export an Orbiter mesh (.msh)"
+    
+    filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
+    
+    def execute(self,context):
+        print("Export execute")
+        export_msh(filepath)
+        return {"FINISHED"}
+
+    def invoke(self,context,event):
+        print("Export invoke")
+        wm=context.window_manager
+        wm.add_fileselect(self)
+        return {"RUNNING_MODAL"}
+
+def export_menu_function(self,context):
+    self.layout.operator(EXPORT_OT_msh.bl_idname,text="Orbiter Mesh (.msh)")
+ 
+
+
 
 # TODO: When importing, the script changes V to 1-V in UVTex, this should be done in export script
 # 
@@ -513,10 +557,12 @@ def import_menu_function(self,context):
 def register():
     print("registering...")
     bpy.types.INFO_MT_file_import.append(import_menu_function)
+    bpy.types.INFO_MT_file_export.append(export_menu_function)
  
 def unregister():
     print("unregistering...")
     bpy.types.INFO_MT_file_import.remove(import_menu_function)
+    bpy.types.INFO_MT_file_export.remove(export_menu_function)
  
 if __name__ == "__main__":
     register()
