@@ -187,7 +187,7 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
                 matpair[i][1].append(n) #fill array of corresponding groups
 
 
-    print("\nUnique pairs:\n",matpairset)
+    print("\nUnique pairs:",len(matpairset),"\n",matpairset)
     if VERBOSE_OUT:
         print(matpair)
     
@@ -223,9 +223,14 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
     print("creating materials") 
     n=0
     matt=[]
+    mat_index_out_of_range=False
     for pair in matpair:
         #create material object
         idx_mat=pair[0][0]-1
+        if (idx_mat)>len(materials)-1: #There are some .msh files with wrong mat indices
+            mat_index_out_of_range=True
+            print("WARNING! Material index out of range in GEOM(s):",pair[1],". Using the last material.")
+            idx_mat=len(materials)-1
         idx_tex=pair[0][1]-1
         if VERBOSE_OUT:
             print("idx_mat=",idx_mat)
@@ -281,6 +286,9 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
 
     if tex_load_fails>0:
         print("WARNING! ",tex_load_fails," of ",len(tx)," textures aren't loaded, possibly wrong file name(s)!")
+
+    if mat_index_out_of_range:
+        print("WARNNG! Material numbers of some GEOMs are out of range, see above!")
 
 def extract_orbpath_from_filename(fname):
     '''
@@ -450,7 +458,7 @@ def load_msh(filename,param_vector):
         print("\nData:\n-----------Groups:------------\n",groups)
         print("-----------------Materials:------------\n",materials) 
         print("------------------Textures:------------\n",textures)
-    print("\nReal groups No=",len(groups))
+    print("\nReal groups No=",len(groups),"; materials:",len(materials),"; textures=",len(textures))
     file.close() #end reading file
     create_materials(groups,materials,textures,orbiterpath,param_vector)
     return{"FINISHED"}
