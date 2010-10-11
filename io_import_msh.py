@@ -302,8 +302,13 @@ def extract_orbpath_from_filename(fname):
     while True:
         v=os.path.split(s)
         s=v[0]
+        #print(v)
         if v[1].lower()=="meshes":
             break
+        if v[1]=="":#path splitted to root directory, search fails
+            s=""
+            break;
+
     if s=='':
         print("WARNING! Orbiter path not found!")
     else:
