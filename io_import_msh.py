@@ -526,19 +526,19 @@ def export_msh(filepath):
             n=0
             vtx=[]
             faces=[]
+            
+            for vert in me.vertices:
+                vtx.append(matrix*vert.co)
+            
             for face in me.faces:
-                for i in face.vertices_raw:
-                    vtx.append(matrix * me.vertices[i].co)
-                    
-                temp=3*len(faces)
-                faces.append([0+temp,1+temp,2+temp])
+                faces.append(face.vertices_raw[:3])
                 if len(face.vertices_raw)==4:
                     print("tetragon")
-                    faces.append([2+temp,3+temp,0+temp])
+                    faces.append([face.vertices_raw[2],face.vertices_raw[3],face.vertices_raw[0]])
 
                 #uvtex=me.uv_textures[0]
             #write GEOM section 
-            file.write("LABEL aaa\n")
+            file.write("LABEL {}\n".format(obj.name))
             file.write("MATERIAL 0\n")
             file.write("NONORMAL\n")
             file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
