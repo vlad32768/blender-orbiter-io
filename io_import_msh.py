@@ -509,7 +509,7 @@ def import_menu_function(self,context):
 ## EXPORT PART
 ############################################################
 
-def export_msh(filepath):
+def export_msh(filepath,convert_coords):
     file=open(filepath,"w")
     file.write("MSHX1\n")
     ngroups=0 
@@ -542,10 +542,16 @@ def export_msh(filepath):
             file.write("MATERIAL 0\n")
             file.write("NONORMAL\n")
             file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
-            for v in vtx:
-                file.write("{} {} {}\n".format(v[0],v[1],v[2]))
-            for f in faces:
-                file.write("{} {} {}\n".format(f[0],f[1],f[2]))
+            if convert_coords:
+                for v in vtx:
+                    file.write("{} {} {}\n".format(-v[0],v[2],-v[1]))
+                for f in faces:
+                    file.write("{} {} {}\n".format(f[0],f[2],f[1]))
+            else:
+                for v in vtx:
+                    file.write("{} {} {}\n".format(v[0],v[1],v[2]))
+                for f in faces:
+                    file.write("{} {} {}\n".format(f[0],f[1],f[2]))
     #write other sections
     file.write("MATERIALS 1\n")
     file.write("matname\n")
@@ -566,10 +572,11 @@ class EXPORT_OT_msh(bpy.types.Operator):
     bl_descriptiom="Export an Orbiter mesh (.msh)"
     
     filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
-    
+    convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
+   
     def execute(self,context):
         print("Export execute")
-        export_msh(self.filepath)
+        export_msh(self.filepath,self.convert_coords)
         return {"FINISHED"}
 
     def invoke(self,context,event):
