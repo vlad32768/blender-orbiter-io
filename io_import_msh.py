@@ -542,22 +542,24 @@ def export_msh(filepath,convert_coords):
             #Creating faces array and finishing vtx array with UVs
             for n in range(len(me.faces)):
                 face=me.faces[n]
-                faces.append(face.vertices_raw[:3]) #first (or alone) triangle
+                faces.append(face.vertices[:3]) #first (or alone) triangle
                 if has_uv:# 3 UVs for 1st triangle
-                    vtx[face.vertices_raw[0]].append(me.uv_textures[0].data[n].uv1)
-                    vtx[face.vertices_raw[1]].append(me.uv_textures[0].data[n].uv2)
-                    vtx[face.vertices_raw[2]].append(me.uv_textures[0].data[n].uv3)
-                if len(face.vertices_raw)==4: #2nd triangle if face is quad
+                    vtx[face.vertices[0]].append(me.uv_textures[0].data[n].uv1)
+                    vtx[face.vertices[1]].append(me.uv_textures[0].data[n].uv2)
+                    vtx[face.vertices[2]].append(me.uv_textures[0].data[n].uv3)
+                if len(face.vertices)==4: #2nd triangle if face is quad
                     print("!!!tetragon!!!")
-                    faces.append([face.vertices_raw[2],face.vertices_raw[3],face.vertices_raw[0]])
+                    faces.append([face.vertices[2],face.vertices[3],face.vertices[0]])
                     if has_uv: #4th UV for 2nd triangle
-                        vtx[face.vertices_raw[3]].append(me.uv_textures[0].data[n].uv4)
+                        vtx[face.vertices[3]].append(me.uv_textures[0].data[n].uv4)
                 else:
                     print("triangle")
             print("====Mesh Geometry Summary====")
-            print(vtx)
+            for v in vtx:
+                print(v)
             print("---")
             print(faces)
+            print("vtx: ",len(vtx),"  faces:",len(faces))
 
             #write GEOM section 
             file.write("LABEL {}\n".format(obj.name))
