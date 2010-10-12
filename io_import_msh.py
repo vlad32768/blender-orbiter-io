@@ -510,6 +510,9 @@ def import_menu_function(self,context):
 ############################################################
 
 def export_msh(filepath,convert_coords):
+   
+    nonormal=False
+   
     file=open(filepath,"w")
     file.write("MSHX1\n")
     ngroups=0 
@@ -527,29 +530,59 @@ def export_msh(filepath,convert_coords):
             vtx=[]
             faces=[]
             
+            #preparing vertices array: coords and normal
             for vert in me.vertices:
-                vtx.append(matrix*vert.co)
+                vtx.append([matrix*vert.co,vert.normal])
             
-            for face in me.faces:
-                faces.append(face.vertices_raw[:3])
-                if len(face.vertices_raw)==4:
-                    print("tetragon")
+            has_uv=True;
+            if len(me.uv_textures)==0:
+                has_uv=False;
+                print("Mesh ",obj.name,"has not UV map" )
+                
+            #Creating faces array and finishing vtx array with UVs
+            for n in range(len(me.faces)):
+                face=me.faces[n]
+                faces.append(face.vertices_raw[:3]) #first (or alone) triangle
+                if has_uv:# 3 UVs for 1st triangle
+                    vtx[face.vertices_raw[0]].append(me.uv_textures[0].data[n].uv1)
+                    vtx[face.vertices_raw[1]].append(me.uv_textures[0].data[n].uv2)
+                    vtx[face.vertices_raw[2]].append(me.uv_textures[0].data[n].uv3)
+                if len(face.vertices_raw)==4: #2nd triangle if face is quad
+                    print("!!!tetragon!!!")
                     faces.append([face.vertices_raw[2],face.vertices_raw[3],face.vertices_raw[0]])
+                    if has_uv: #4th UV for 2nd triangle
+                        vtx[face.vertices_raw[3]].append(me.uv_textures[0].data[n].uv4)
+                else:
+                    print("triangle")
+            print("====Mesh Geometry Summary====")
+            print(vtx)
+            print("---")
+            print(faces)
 
-                #uvtex=me.uv_textures[0]
             #write GEOM section 
             file.write("LABEL {}\n".format(obj.name))
             file.write("MATERIAL 0\n")
-            file.write("NONORMAL\n")
+            if nonormal:
+                file.write("NONORMAL\n")
             file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
             if convert_coords:
                 for v in vtx:
-                    file.write("{} {} {}\n".format(-v[0],v[2],-v[1]))
+                    file.write("{} {} {}".format(-v[0][0],v[0][2],-v[0][1]))
+                    if not nonormal: #I think normal coords should be converted too
+                        file.write(" {} {} {}".format(-v[1][0],v[1][2],-v[1][1]))
+                    if has_uv:
+                        file.write(" {} {}".format(v[2][0],1-v[2][1]))        
+                    file.write("\n")
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[2],f[1]))
             else:
                 for v in vtx:
-                    file.write("{} {} {}\n".format(v[0],v[1],v[2]))
+                    file.write("{} {} {}".format(v[0][0],v[0][1],v[0][2]))
+                    if not nonormal:
+                        file.write(" {} {} {}".format(v[1][0],v[1][1],v[1][2]))
+                    if has_uv:
+                        file.write(" {} {}".format(v[2][0],1-v[2][1]))        
+                    file.write("\n")
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[1],f[2]))
     #write other sections
