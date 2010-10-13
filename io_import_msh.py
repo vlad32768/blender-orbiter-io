@@ -542,18 +542,36 @@ def export_msh(filepath,convert_coords):
             #Creating faces array and finishing vtx array with UVs
             for n in range(len(me.faces)):
                 face=me.faces[n]
-                faces.append(face.vertices[:3]) #first (or alone) triangle
-                if has_uv:# 3 UVs for 1st triangle
-                    vtx[face.vertices[0]].append(me.uv_textures[0].data[n].uv1)
-                    vtx[face.vertices[1]].append(me.uv_textures[0].data[n].uv2)
-                    vtx[face.vertices[2]].append(me.uv_textures[0].data[n].uv3)
-                if len(face.vertices)==4: #2nd triangle if face is quad
-                    print("!!!tetragon!!!")
-                    faces.append([face.vertices[2],face.vertices[3],face.vertices[0]])
-                    if has_uv: #4th UV for 2nd triangle
-                        vtx[face.vertices[3]].append(me.uv_textures[0].data[n].uv4)
-                else:
-                    print("triangle")
+                
+                if has_uv:# 3 UVs 
+                    changeface=False
+                    fc=[]#face to add
+                    for i in range(len(face.vertices)):
+                        uvs=me.uv_textures[0].data[n].uv_raw[(2*i):(2*i+2)]
+                        idx_vert=face.vertices[i]
+                        if len(vtx[idx_vert])==2: #no UVs yet, add idx_vert  to fc and uvs to vert
+                            vtx[idx_vert].append(uvs)
+                            fc.append(idx_vert)
+                        else:
+                            if vtx[idx_vert][2]==uvs:#UVs are equal, just add idx_vert to fc
+                                print("uvs equal")
+                                fc.append(idx_vert)
+                            else: #uvs differ, add new vtx and use new idx_vert
+                                vtx.append([vtx[idx_vert][0],vtx[idx_vert][1],uvs])
+                                fc.append(len(vtx)-1)
+                    #Add resulting fc
+                    faces.append(fc[:3])
+                    if len(fc)==4:
+                        faces.append([fc[2],fc[3],fc[0]])
+
+                
+                else:#export just faces without uv
+                    faces.append(face.vertices[:3]) #first (or alone) triangle
+                    if len(face.vertices)==4: #2nd triangle if face is quad
+                        print("!!!tetragon!!!")
+                        faces.append([face.vertices[2],face.vertices[3],face.vertices[0]])
+                    else:
+                        print("triangle")
             print("====Mesh Geometry Summary====")
             for v in vtx:
                 print(v)
