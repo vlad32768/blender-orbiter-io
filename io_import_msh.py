@@ -7,7 +7,7 @@
 #
 # 3. If there is one material with different textures in .msh file, the script will create a copy of this material for every texture.
 #
-# 4. There are no ambient and emissive colors in Blender, so the script doesn't import ambient colors and calculates emit component
+# 4. There are no ambient and emissive colors in Blender, so the script doesn't import ambient colors but calculates emit component
 #
 # 5. Some models (for example DGIV and DG-XR) have got materials with shiny specular and zero hardness. That doesn't look good in blender. 
 #    You can use "Raise small hardness" parameter in file import dialog to set minimal hardness manually
@@ -519,9 +519,11 @@ def export_msh(filepath,convert_coords):
     for obj in bpy.context.selected_objects:
         if obj.type=='MESH':
             ngroups=ngroups+1
-
     file.write("GROUPS {}\n".format(ngroups))
-    
+   
+    mtrls={}
+    txtrs={}
+
     for obj in bpy.context.selected_objects:
         if obj.type=='MESH':
             matrix=obj.matrix_world
@@ -529,7 +531,24 @@ def export_msh(filepath,convert_coords):
             n=0
             vtx=[]
             faces=[]
+           
             
+            file.write("LABEL {}\n".format(obj.name))
+            # Adding materials and textures
+            if len(obj.material_slots)!=0:
+                mat=obj.material_slots[0].material
+                if not (mat.name in mtrls):
+                    print("Mew material:",mat.name)
+                    mtrls[mat.name]=len(mtrls)
+                file.write("MATERIAL {}\n".format(mtrls[mat.name]))
+
+                if mat.texture_slots[0]!=None:
+                    tex=mat.texture_slots[0].texture
+                    if not(tex.name in txtrs):
+                        print("New texture:",tex.name)
+                        txtrs[tex.name]=len(txtrs)
+                    file.write("TEXTURE {}\n".format(txtrs[tex.name]))
+                        
             #preparing vertices array: coords and normal
             for vert in me.vertices:
                 vtx.append([matrix*vert.co,vert.normal])
@@ -580,8 +599,6 @@ def export_msh(filepath,convert_coords):
             print("vtx: ",len(vtx),"  faces:",len(faces))
 
             #write GEOM section 
-            file.write("LABEL {}\n".format(obj.name))
-            file.write("MATERIAL 0\n")
             if nonormal:
                 file.write("NONORMAL\n")
             file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
@@ -606,14 +623,32 @@ def export_msh(filepath,convert_coords):
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[1],f[2]))
     #write other sections
-    file.write("MATERIALS 1\n")
-    file.write("matname\n")
-    file.write("MATERIAL matname\n")
-    file.write("1.0 1.0 1.0 1.0\n")
-    file.write("1.0 1.0 1.0 1.0\n")
-    file.write("1.0 1.0 1.0 1.0 40\n")
-    file.write("0.0 0.0 0.0 1.0\n")
-    file.write("TEXTURES 0\n")
+    print("===Materials summary====")
+    print(mtrls)
+    print("===Textures summary=====")
+    print(txtrs)
+    #===Write MATERIALS section=====
+    file.write("MATERIALS {}\n".format(len(mtrls))) #just mtrls sorted by values
+    temp_m=sorted(mtrls.items(),key=lambda x: x[1])
+    for m in temp_m:
+        file.write("{}\n".format(m[0]))
+    
+    for m in temp_m:
+        file.write("MATERIAL {}\n".format(m[0]))
+        
+        mat=bpy.data.materials[m[0]]
+        dc=mat.diffuse_color
+        file.write("{} {} {} {}\n".format(dc[0],dc[1],dc[2],mat.alpha))
+        file.write("{} {} {} {}\n".format(dc[0],dc[1],dc[2],mat.alpha))
+        sc=mat.specular_color
+        file.write("{} {} {} {} {}\n".format(sc[0],sc[1],sc[2],mat.specular_alpha,mat.specular_hardness))
+        file.write("{} {} {} {}\n".format(dc[0]*mat.emit,dc[1]*mat.emit,dc[2]*mat.emit,mat.alpha))
+    #=====Write TEXTURES section ======
+    file.write("TEXTURES {}\n".format(len(txtrs)))
+    temp_t=sorted(txtrs.items(),key=lambda x: x[1])
+    for t in temp_t:
+        tex=bpy.data.textures[t[0]]
+        file.write("{}\n".format(tex.name)) #TODO: Import texture files 
 
     file.close()                
 
@@ -641,12 +676,11 @@ class EXPORT_OT_msh(bpy.types.Operator):
 def export_menu_function(self,context):
     self.layout.operator(EXPORT_OT_msh.bl_idname,text="Orbiter Mesh (.msh)")
  
+###########################################
+## END OF EXPORT PART
+############################################
 
-
-
-# TODO: When importing, the script changes V to 1-V in UVTex, this should be done in export script
-# 
-# TODO: Conversion to Orbiter coord system must be done in export script (see description at addon info)
+############## REGISTER PART#########################3
 
 def register():
     print("registering...")
