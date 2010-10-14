@@ -512,7 +512,10 @@ def import_menu_function(self,context):
 def export_msh(filepath,convert_coords):
    
     nonormal=False
-   
+  
+    if os.path.splitext(filepath)[1]=="":
+        filepath=filepath+".msh"
+
     file=open(filepath,"w")
     file.write("MSHX1\n")
     ngroups=0 
@@ -576,7 +579,7 @@ def export_msh(filepath,convert_coords):
                             fc.append(idx_vert)
                         else:
                             if vtx[idx_vert][2]==uvs:#UVs are equal, just add idx_vert to fc
-                                print("uvs equal")
+                                #print("uvs equal")
                                 fc.append(idx_vert)
                             else: #uvs differ, add new vtx and use new idx_vert
                                 vtx.append([vtx[idx_vert][0],vtx[idx_vert][1],uvs])
@@ -590,10 +593,10 @@ def export_msh(filepath,convert_coords):
                 else:#export just faces without uv
                     faces.append(face.vertices[:3]) #first (or alone) triangle
                     if len(face.vertices)==4: #2nd triangle if face is quad
-                        print("!!!tetragon!!!")
+                        #print("!!!tetragon!!!")
                         faces.append([face.vertices[2],face.vertices[3],face.vertices[0]])
-                    else:
-                        print("triangle")
+                    #else:
+                    #    print("triangle")
             print("====Mesh Geometry Summary====")
             if VERBOSE_OUT:
                 for v in vtx:
@@ -668,6 +671,8 @@ def export_msh(filepath,convert_coords):
             tex.image.save_render(os.path.join(texpath,tex_fname))
         else: #image file is already saved on disk
             tex_fname=os.path.split(img_fp)[1]
+            if tex.image.file_format=="":#if no format (dds) it will be saved as png.
+                tex_fname=os.path.splitext(tex_fname)[0]+".png"
             tex.image.save_render(os.path.join(texpath,tex_fname))
         
         file.write("{}\n".format(ntpath.join(texdir,os.path.splitext(tex_fname)[0]+".dds"))) #local dir + fname+'dds' 
