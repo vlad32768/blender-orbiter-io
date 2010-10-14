@@ -51,9 +51,7 @@ bl_addon_info = {
     "warning": 'Beta 1 version', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
     "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
-    "description": """\
-Imports and exports Orbiter mesh file (as well as materials and textures).
-"""}
+    "description": "Imports and exports Orbiter mesh file (as well as materials and textures)."}
 
 
 import bpy
@@ -557,7 +555,7 @@ def export_msh(filepath,convert_coords):
                 if not (mat.name in mtrls):
                     print("Mew material:",mat.name)
                     mtrls[mat.name]=len(mtrls)
-                file.write("MATERIAL {}\n".format(mtrls[mat.name]))
+                file.write("MATERIAL {}\n".format(mtrls[mat.name]+1)) #.msh material idxs start from 1
 
                 if mat.texture_slots[0]!=None:
                     tex=mat.texture_slots[0].texture
@@ -565,10 +563,15 @@ def export_msh(filepath,convert_coords):
                         if not(tex.name in txtrs):
                             print("New texture:",tex.name)
                             txtrs[tex.name]=len(txtrs)
-                        file.write("TEXTURE {}\n".format(txtrs[tex.name]))
+                        file.write("TEXTURE {}\n".format(txtrs[tex.name]+1))#.msh tex idxs start from 1
                     else:
                         print("Non-image texture")
-                        
+                        file.write("TEXTURE 0\n")
+                else: #no tex slots in material
+                    file.write("TEXTURE 0\n")
+            else: #no material slots in mesh object
+                file.write("MATERIAL 0\n")
+
             #preparing vertices array: coords and normal
             for vert in me.vertices:
                 vtx.append([matrix*vert.co,vert.normal])
