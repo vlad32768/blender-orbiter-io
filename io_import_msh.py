@@ -544,7 +544,7 @@ def export_msh(filepath,convert_coords):
 
                 if mat.texture_slots[0]!=None:
                     tex=mat.texture_slots[0].texture
-                    if tex.type="IMAGE": #Texture type must be image
+                    if tex.type=="IMAGE": #Texture type must be image
                         if not(tex.name in txtrs):
                             print("New texture:",tex.name)
                             txtrs[tex.name]=len(txtrs)
@@ -595,10 +595,11 @@ def export_msh(filepath,convert_coords):
                     else:
                         print("triangle")
             print("====Mesh Geometry Summary====")
-            for v in vtx:
-                print(v)
-            print("---")
-            print(faces)
+            if VERBOSE_OUT:
+                for v in vtx:
+                    print(v)
+                print("---")
+                print(faces)
             print("vtx: ",len(vtx),"  faces:",len(faces))
 
             #write GEOM section 
@@ -649,36 +650,27 @@ def export_msh(filepath,convert_coords):
     #=====Write TEXTURES section ======
     file.write("TEXTURES {}\n".format(len(txtrs)))
     
-    v=path.split(filepath)
+    v=os.path.split(filepath)
     mshdir=v[0]
-    mshname=path.splitext(v[1])[0]
+    mshname=os.path.splitext(v[1])[0]
     texdir=mshname+"tex"
+    texpath=os.path.join(mshdir,texdir)
 
     temp_t=sorted(txtrs.items(),key=lambda x: x[1])
     for t in temp_t:
         tex=bpy.data.textures[t[0]]
-        tex_fp=tex.image.filepath
+        img_fp=tex.image.filepath
         
-        '''
-        newdir=msh_dir+msh_name+"tex"
-        newtexfile=tex.name+image.file_format
-        
-        tex path
-        1. untitled ->  save(newdir/newtexfile):
-                        in msh -- msh_name+"tex"/newtexfile
-           untitled+DXT ->??? 
-            
-        2.  exists  ->  save(newdir/oldtexfile)
-            exists+DXT->save(newdir/oldtexfile)
-        '''
-        
-        #if tex_fp="Untitled":
-        #    tex.image.save_render(mshdir+)
-            
-        #if tex.image.file_format=="DXT":
+        tex_fname=""
 
+        if img_fp=="Untitled": #new name from tex name
+            tex_fname=tex.name+"."+tex.image.file_format.lower()
+            tex.image.save_render(os.path.join(texpath,tex_fname))
+        else: #image file is already saved on disk
+            tex_fname=os.path.split(img_fp)[1]
+            tex.image.save_render(os.path.join(texpath,tex_fname))
         
-        file.write("{}\n".format(tex.name)) #TODO: Import texture files 
+        file.write("{}\n".format(ntpath.join(texdir,os.path.splitext(tex_fname)[0]+".dds"))) #local dir + fname+'dds' 
 
     file.close()                
 
