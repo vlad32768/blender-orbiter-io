@@ -250,45 +250,46 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
             print("diff=",materials[idx_mat][1][:3])
             if len(textures)>0:
                 print("tex=",textures[idx_tex][1],"idx=",idx_tex)
-        matt.append(bpy.data.materials.new(materials[idx_mat][0]))
-        #diffuse component
-        matt[n].diffuse_color=materials[idx_mat][1][:3]
-        matt[n].alpha=materials[idx_mat][1][3]
-        if materials[idx_mat][1][3]<1.0:
-            matt[n].use_transparency=True
-        #specular component
-        matt[n].specular_color=materials[idx_mat][3][:3]
-        matt[n].specular_alpha=materials[idx_mat][3][3]  
+        if idx_mat>=0: #Don't do anything with .msh MATERIAL 0 indices
+            matt.append(bpy.data.materials.new(materials[idx_mat][0]))
+            #diffuse component
+            matt[n].diffuse_color=materials[idx_mat][1][:3]
+            matt[n].alpha=materials[idx_mat][1][3]
+            if materials[idx_mat][1][3]<1.0:
+                matt[n].use_transparency=True
+            #specular component
+            matt[n].specular_color=materials[idx_mat][3][:3]
+            matt[n].specular_alpha=materials[idx_mat][3][3]  
+            
+            raise_small_hardness=param_vector[2]
+            default_hardeness=param_vector[3]
+            if len(materials[idx_mat][3])==5:
+                if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
+                    matt[n].specular_hardness=default_hardeness
+                else:
+                    matt[n].specular_hardness=materials[idx_mat][3][4]
+            #there aren't different ambient and emissive color component in blender
+            #ambient is very often equal to diffuse, it's like amb=1.0 in blender
+            #Emmissive component:
+            import_emmissive=True;
+            if import_emmissive:
+                emm_c=materials[idx_mat][4][:3]
+                matt[n].emit=(emm_c[0]+emm_c[1]+emm_c[2])/3
         
-        raise_small_hardness=param_vector[2]
-        default_hardeness=param_vector[3]
-        if len(materials[idx_mat][3])==5:
-            if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
-                matt[n].specular_hardness=default_hardeness
-            else:
-                matt[n].specular_hardness=materials[idx_mat][3][4]
-        #there aren't different ambient and emissive color component in blender
-        #ambient is very often equal to diffuse, it's like amb=1.0 in blender
-        #Emmissive component:
-        import_emmissive=True;
-        if import_emmissive:
-            emm_c=materials[idx_mat][4][:3]
-            matt[n].emit=(emm_c[0]+emm_c[1]+emm_c[2])/3
-        
-        #Adding texture to material
-        if idx_tex>=0:
-            mtex=matt[n].texture_slots.add()
-            mtex.texture=tx[idx_tex]
-            mtex.texture_coords="UV" 
-            #mtex.map_colordiff = True
-            #mtex.map_alpha = True
-            #mtex.map_coloremission = True
-            #mtex.map_density = True
-            #mtex.mapping = 'FLAT'
+            #Adding texture to material
+            if idx_tex>=0:
+                mtex=matt[n].texture_slots.add()
+                mtex.texture=tx[idx_tex]
+                mtex.texture_coords="UV" 
+                #mtex.map_colordiff = True
+                #mtex.map_alpha = True
+                #mtex.map_coloremission = True
+                #mtex.map_density = True
+                #mtex.mapping = 'FLAT'
 
-        for grp_idx in pair[1]:
-            groups[grp_idx][5].data.materials.append(matt[n])
-        n=n+1
+            for grp_idx in pair[1]:
+                groups[grp_idx][5].data.materials.append(matt[n])
+            n=n+1
     print("=============Materials creation summary:=================")
     print("Created ",n," materials,")
     print("Loaded ",len(tx)-tex_load_fails," textures.")
