@@ -544,10 +544,13 @@ def export_msh(filepath,convert_coords):
 
                 if mat.texture_slots[0]!=None:
                     tex=mat.texture_slots[0].texture
-                    if not(tex.name in txtrs):
-                        print("New texture:",tex.name)
-                        txtrs[tex.name]=len(txtrs)
-                    file.write("TEXTURE {}\n".format(txtrs[tex.name]))
+                    if tex.type="IMAGE": #Texture type must be image
+                        if not(tex.name in txtrs):
+                            print("New texture:",tex.name)
+                            txtrs[tex.name]=len(txtrs)
+                        file.write("TEXTURE {}\n".format(txtrs[tex.name]))
+                    else:
+                        print("Non-image texture")
                         
             #preparing vertices array: coords and normal
             for vert in me.vertices:
@@ -645,9 +648,36 @@ def export_msh(filepath,convert_coords):
         file.write("{} {} {} {}\n".format(dc[0]*mat.emit,dc[1]*mat.emit,dc[2]*mat.emit,mat.alpha))
     #=====Write TEXTURES section ======
     file.write("TEXTURES {}\n".format(len(txtrs)))
+    
+    v=path.split(filepath)
+    mshdir=v[0]
+    mshname=path.splitext(v[1])[0]
+    texdir=mshname+"tex"
+
     temp_t=sorted(txtrs.items(),key=lambda x: x[1])
     for t in temp_t:
         tex=bpy.data.textures[t[0]]
+        tex_fp=tex.image.filepath
+        
+        '''
+        newdir=msh_dir+msh_name+"tex"
+        newtexfile=tex.name+image.file_format
+        
+        tex path
+        1. untitled ->  save(newdir/newtexfile):
+                        in msh -- msh_name+"tex"/newtexfile
+           untitled+DXT ->??? 
+            
+        2.  exists  ->  save(newdir/oldtexfile)
+            exists+DXT->save(newdir/oldtexfile)
+        '''
+        
+        #if tex_fp="Untitled":
+        #    tex.image.save_render(mshdir+)
+            
+        #if tex.image.file_format=="DXT":
+
+        
         file.write("{}\n".format(tex.name)) #TODO: Import texture files 
 
     file.close()                
