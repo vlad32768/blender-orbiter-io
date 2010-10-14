@@ -22,18 +22,20 @@
 
 # Notes on .msh export
 #
-# 1. Coordinate system: The script does conversion to left handed coordinate system, so there is the proper way to place your model in Blender when you start modeling:
+# 1. The script exports selected objects. To export the whole scene, select all objects by pressing "a".
+# 2. Coordinate system: The script does conversion to left handed coordinate system, so there is the proper way to place your model in Blender when you start modeling:
 #    -- Y axis is the main thrust direction;
 #    -- Z axis points UP;
 #    -- X axis points LEFT.
-# 2. Materials: 
+# 3. Materials: 
 #    -- The script makes Ambient color equal to Diffuse;
 #    -- Emissive color is equal to Diffuse*emit
-# 3. Textures
+# 4. Textures
 #    -- If you export your model to "file.msh", textures will be saved in "filetex" directory near the .msh file.
 #       "file.msh" should be copied to Orbiter's "Meshes" directory, "filetex" directory -- to "Textures" (see TEXTURES section of .msh file)
 #    -- Blender does not support writing .DDS files. In most cases the script will save .png files (check it). 
 #       So you have to convert textures to .dds manually. However, the script writes names with .dds extension in .msh TEXTURES section 
+
 
 ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter installation, it will use this path
 #ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter"
@@ -63,6 +65,10 @@ import ntpath
 ####################################################
 ## IMPORT PART
 ####################################################
+
+#TODO: Make default material for MATERIAL 0 GEOMs if there are any
+#TODO: GEOMs without MATERIAL and TEXTURE should inherit MATERIAL and TEXTURE from previous GEOMs. Now they are imported without materials
+
 def create_mesh(name,verts,faces,norm,uv,param_vector):
     '''Function that creates mesh from loaded data'''
 
