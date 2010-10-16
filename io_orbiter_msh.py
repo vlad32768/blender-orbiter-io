@@ -28,9 +28,11 @@
 #    -- Z axis points UP;
 #    -- X axis points LEFT.
 # 3. Materials: 
+#    -- The script exports only the first material of a mesh object;
 #    -- The script makes Ambient color equal to Diffuse;
 #    -- Emissive color is equal to Diffuse*emit
 # 4. Textures
+#    -- The script exports only the first texture of a material; this texture's type must be "IMAGE".
 #    -- If you export your model to "file.msh", textures will be saved in "filetex" directory near the .msh file.
 #       "file.msh" should be copied to Orbiter's "Meshes" directory, "filetex" directory -- to "Textures" (see TEXTURES section of .msh file)
 #    -- Blender does not support writing .DDS files. In most cases the script will save .png files (check it). 
@@ -43,14 +45,14 @@ ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter i
 VERBOSE_OUT = False;
 
 bl_addon_info = {
-    "name": "Import/Export Orbiter mesh (.msh)",
+    "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
     "version": (1,0),
     "blender": (2, 5, 4),
     "api": 32391,
     "category": "Import/Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
-    "warning": 'Beta 1 version', # used for warning icon and text in addons panel
+    "warning": 'Beta 2 version', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
     "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
     "description": "Imports and exports Orbiter mesh file (as well as materials and textures)."}
