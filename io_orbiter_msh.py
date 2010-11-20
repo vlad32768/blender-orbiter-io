@@ -49,7 +49,7 @@ bl_addon_info = {
     "author": "vlad32768",
     "version": (1,0),
     "blender": (2, 5, 4),
-    "api": 32391,
+    "api": 33192,
     "category": "Import/Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
     "warning": 'Beta 2 version', # used for warning icon and text in addons panel
