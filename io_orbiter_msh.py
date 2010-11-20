@@ -530,7 +530,7 @@ def import_menu_function(self,context):
 ## EXPORT PART
 ############################################################
 
-def export_msh(filepath,convert_coords):
+def export_msh(filepath,convert_coords,apply_modifiers):
    
     nonormal=False
   
@@ -551,7 +551,10 @@ def export_msh(filepath,convert_coords):
     for obj in bpy.context.selected_objects:
         if obj.type=='MESH':
             matrix=obj.matrix_world
-            me=obj.data
+            if (apply_modifiers):
+                me = obj.create_mesh(bpy.context.scene, True, "PREVIEW")
+            else:
+                me=obj.data
             n=0
             vtx=[]
             faces=[]
@@ -583,7 +586,7 @@ def export_msh(filepath,convert_coords):
 
             #preparing vertices array: coords and normal
             for vert in me.vertices:
-                vtx.append([matrix*vert.co,vert.normal])
+                vtx.append([vert.co*matrix,vert.normal])
             
             has_uv=True;
             if len(me.uv_textures)==0:
@@ -630,6 +633,9 @@ def export_msh(filepath,convert_coords):
                 print("---")
                 print(faces)
             print("vtx: ",len(vtx),"  faces:",len(faces))
+
+            if (apply_modifiers): #Mesh reading finished; removing temporary mesh with applied modifiers
+                bpy.data.meshes.remove(me)
 
             #write GEOM section 
             if nonormal:
@@ -714,10 +720,12 @@ class EXPORT_OT_msh(bpy.types.Operator):
     
     filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
+    apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=False)
+
    
     def execute(self,context):
         print("Export execute")
-        export_msh(self.filepath,self.convert_coords)
+        export_msh(self.filepath,self.convert_coords,self.apply_modifiers)
         return {"FINISHED"}
 
     def invoke(self,context,event):
