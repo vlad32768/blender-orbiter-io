@@ -44,13 +44,13 @@ ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter i
 
 VERBOSE_OUT = False;
 
-bl_addon_info = {
+bl_info = {
     "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
     "version": (1,0),
-    "blender": (2, 5, 4),
-    "api": 33192,
-    "category": "Import/Export",
+    "blender": (2, 5, 6),
+    "api": 34326,
+    "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
     "warning": 'Beta 2 version', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
@@ -491,8 +491,9 @@ def load_msh(filename,param_vector):
 
 #for operator class properties
 from bpy.props import *
+from io_utils import ImportHelper, ExportHelper
 
-class IMPORT_OT_msh(bpy.types.Operator):
+class IMPORT_OT_msh(bpy.types.Operator, ImportHelper):
     '''Import MSH Operator.'''
     bl_idname= "import_scene.msh"
     bl_label= "Import MSH"
@@ -514,11 +515,6 @@ class IMPORT_OT_msh(bpy.types.Operator):
         load_msh(self.filepath,param_vector)
         return{"FINISHED"}
 
-    def invoke(self,context,event):
-        print("invoke")
-        wm=context.window_manager
-        wm.add_fileselect(self)
-        return {"RUNNING_MODAL"}
 
 def import_menu_function(self,context):
     self.layout.operator(IMPORT_OT_msh.bl_idname, text="Orbiter Mesh (.msh)")
@@ -565,7 +561,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             if len(obj.material_slots)!=0:
                 mat=obj.material_slots[0].material
                 if not (mat.name in mtrls):
-                    print("Mew material:",mat.name)
+                    print("New material:",mat.name)
                     mtrls[mat.name]=len(mtrls)
                 file.write("MATERIAL {}\n".format(mtrls[mat.name]+1)) #.msh material idxs start from 1
 
@@ -712,11 +708,13 @@ def export_msh(filepath,convert_coords,apply_modifiers):
     file.close()                
 
 
-class EXPORT_OT_msh(bpy.types.Operator):
+class EXPORT_OT_msh(bpy.types.Operator, ExportHelper):
     '''Export MSH Operator'''
     bl_idname="export_mesh.msh"
     bl_label="Export MSH"
     bl_descriptiom="Export an Orbiter mesh (.msh)"
+    
+    filename_ext=".msh"
     
     filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
@@ -727,12 +725,6 @@ class EXPORT_OT_msh(bpy.types.Operator):
         print("Export execute")
         export_msh(self.filepath,self.convert_coords,self.apply_modifiers)
         return {"FINISHED"}
-
-    def invoke(self,context,event):
-        print("Export invoke")
-        wm=context.window_manager
-        wm.add_fileselect(self)
-        return {"RUNNING_MODAL"}
 
 def export_menu_function(self,context):
     self.layout.operator(EXPORT_OT_msh.bl_idname,text="Orbiter Mesh (.msh)")
