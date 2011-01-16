@@ -19,6 +19,9 @@
 #  2. Triangle backface flipping: tri[1]<->tri[2]
 #  3. UV coord system conversion: v=1-v
 #  So, conversion to orbiter is: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
+# 7. Some meshes (XR5 for example) have groups with missing UVs in some vertices. Usually this issue is fixed automatically,
+#  but in some cases script could crash with "List index out of range" error. Please report if it happens!
+#  
 
 # Notes on .msh export
 #
@@ -43,6 +46,7 @@ ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter i
 #ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter"
 
 VERBOSE_OUT = False;
+#VERBOSE_OUT = True;
 
 bl_info = {
     "name": "Orbiter mesh (.msh)",
@@ -343,6 +347,7 @@ def load_msh(filename,param_vector):
     '''Read MSH file'''
 
     convert_coords=param_vector[0]
+    add_missing_uvs=param_vector[4]
 
     orbiterpath=ORBITER_PATH_DEFAULT
     s=extract_orbpath_from_filename(filename)
@@ -405,6 +410,7 @@ def load_msh(filename,param_vector):
                     nt=int(v1[2].rstrip(";"))
                     if VERBOSE_OUT:
                         print ("Group No:",n_grp," verts=",nv," tris=",nt)
+                    has_uvs=False;   # Flag to fix groups with missing UVs
                     for n in range(nv):
                         s2=file.readline();
                         v2=s2.split();
@@ -422,6 +428,7 @@ def load_msh(filename,param_vector):
                         
                         convert_uvs=True; ##test mode= uvs without conversion
                         if len(v2)==8: #there are normals and uvs
+                            has_uvs=True;
                             if convert_uvs:
                                 #in Blender, (0,0) is the upper-left corner. 
                                 #in Orbiter -- lower-left corner. So I must invert V axis
@@ -429,10 +436,15 @@ def load_msh(filename,param_vector):
                             else:
                                 uv.append([float(v2[6]),float(v2[7])])
                         elif len(v2)==5: #there are only uvs
+                            has_uvs=True;
                             if convert_uvs:
                                 uv.append([float(v2[3]),1.0-float(v2[4])])    
                             else:
                                 uv.append([float(v2[3]),float(v2[4])])
+                        elif (add_missing_uvs or has_uvs) and (len(v2)==6 or len(v2)==3): #Adding zero UVs for buggy meshes with incomplete UVs (XR5 etc)
+                            if VERBOSE_OUT:
+                                print("Warning! Missed UV!")
+                            uv.append([0.0,0.0])
 
                     for n in range(nt): #read triangles
                         s2=file.readline();
@@ -441,6 +453,8 @@ def load_msh(filename,param_vector):
                             tri.append([int(v2[0]),int(v2[2]),int(v2[1])]) #reverted triangle
                         else:
                             tri.append([int(v2[0]),int(v2[1]),int(v2[2])]) #non reverted triangle
+                    #some debug output
+                    #print("Length: vtx={} norm={} uv={} tri={}".format(len(vtx),len(norm),len(uv),len(tri)))
                     #print (vtx)
                     #print(norm)
                     n_grp=n_grp+1;
@@ -509,9 +523,10 @@ class IMPORT_OT_msh(bpy.types.Operator, ImportHelper):
     raise_small_hardness= BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
     default_hardness=IntProperty(name="Hardness",description="Smallest hardness",default=20)
 
+    add_missing_uvs= BoolProperty(name="Add missing UVs", description="Add missing UVs in buggy meshes (XR5 etc) USE IT ONLY TO AVOID CRASH", default=False,options={"HIDDEN"})
     def execute(self,context):
         print("execute")
-        param_vector=[self.convert_coords,self.show_single_sided,self.raise_small_hardness,self.default_hardness]
+        param_vector=[self.convert_coords,self.show_single_sided,self.raise_small_hardness,self.default_hardness,self.add_missing_uvs]
         load_msh(self.filepath,param_vector)
         return{"FINISHED"}
 
