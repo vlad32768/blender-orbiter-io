@@ -2,26 +2,26 @@
 # Notes on .msh import:
 #
 # 1. You should import meshes from Orbiter installation. The module will autodedect Orbiter directory and load textures from Orbiter installation.
-#    
+#
 # 2. The script doesn't import vertex normals. It seems that Blender often recalculates vertex normals, so it's useless to import them.
 #
 # 3. If there is one material with different textures in .msh file, the script will create a copy of this material for every texture.
 #
 # 4. There are no ambient and emissive colors in Blender, so the script doesn't import ambient colors but calculates emit component
 #
-# 5. Some models (for example DGIV and DG-XR) have got materials with shiny specular and zero hardness. That doesn't look good in blender. 
+# 5. Some models (for example DGIV and DG-XR) have got materials with shiny specular and zero hardness. That doesn't look good in blender.
 #    You can use "Raise small hardness" parameter in file import dialog to set minimal hardness manually
 #
 # 6. Blender uses right-handed coordinate system, Orbiter uses left-handed one. Also, Blender and Orbiter use different UV coord origins
-#  So, the module converts vertex and UV coordinates 
-#  Conversion from orbiter coordinate system is: 
+#  So, the module converts vertex and UV coordinates
+#  Conversion from orbiter coordinate system is:
 #  1. Coordinate system conversion:z=y ; y=-z; x=-x
 #  2. Triangle backface flipping: tri[1]<->tri[2]
 #  3. UV coord system conversion: v=1-v
 #  So, conversion to orbiter is: z=-y,y=z,x=-x ; tri[1]<-> tri[2] ; v=1-v
 # 7. Some meshes (XR5 for example) have groups with missing UVs in some vertices. Usually this issue is fixed automatically,
 #  but in some cases script could crash with "List index out of range" error. Please report if it happens!
-#  
+#
 
 # Notes on .msh export
 #
@@ -30,7 +30,7 @@
 #    -- Y axis is the main thrust direction;
 #    -- Z axis points UP;
 #    -- X axis points LEFT.
-# 3. Materials: 
+# 3. Materials:
 #    -- The script exports only the first material of a mesh object;
 #    -- The script makes Ambient color equal to Diffuse;
 #    -- Emissive color is equal to Diffuse*emit
@@ -38,8 +38,8 @@
 #    -- The script exports only the first texture of a material; this texture's type must be "IMAGE".
 #    -- If you export your model to "file.msh", textures will be saved in "filetex" directory near the .msh file.
 #       "file.msh" should be copied to Orbiter's "Meshes" directory, "filetex" directory -- to "Textures" (see TEXTURES section of .msh file)
-#    -- Blender does not support writing .DDS files. In most cases the script will save .png files (check it). 
-#       So you have to convert textures to .dds manually. However, the script writes names with .dds extension in .msh TEXTURES section 
+#    -- Blender does not support writing .DDS files. In most cases the script will save .png files (check it).
+#       So you have to convert textures to .dds manually. However, the script writes names with .dds extension in .msh TEXTURES section
 
 
 ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter installation, it will use this path
@@ -53,7 +53,7 @@ bl_info = {
     "author": "vlad32768",
     "version": (1,0),
     "blender": (2, 5, 6),
-    "api": 34326,
+    "api": 34987,
     "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
     "warning": 'Beta 2 version', # used for warning icon and text in addons panel
@@ -75,6 +75,7 @@ import ntpath
 #TODO: Make default material for MATERIAL 0 GEOMs if there are any
 #TODO: GEOMs without MATERIAL and TEXTURE should inherit MATERIAL and TEXTURE from previous GEOMs. Now they are imported without materials
 
+
 def create_mesh(name,verts,faces,norm,uv,param_vector):
     '''Function that creates mesh from loaded data'''
 
@@ -87,7 +88,7 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
     bpy.context.scene.objects.link(ob)
     if show_single_sided:
         me.show_double_sided=False
-    # from_pydata doesn't work correctly, it swaps vertices in some triangles 
+    # from_pydata doesn't work correctly, it swaps vertices in some triangles
     #me.from_pydata(verts,[], faces)
     me.vertices.add(len(verts))
     me.faces.add(len(faces))
@@ -97,8 +98,8 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
         me.vertices[i].co=verts[i]
     for i in range(len(faces)):
         me.faces[i].vertices=faces[i]
-    
-    #there is something wrong with normals in Blender 
+
+    #there is something wrong with normals in Blender
     #if (norm!=[]):
     #    for i in range(len(norm)):
     #        me.vertices[i].normal=norm[i]
@@ -116,6 +117,7 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
     me.update(calc_edges=True)
     return ob
 
+
 def join_case_insensitive(fpath,f):
     '''
     helper for find_texture_path()
@@ -123,7 +125,7 @@ def join_case_insensitive(fpath,f):
 
     Returns:    joined path if it finds f
                 "" if it finds nothing
-    ''' 
+    '''
     ld=os.listdir(fpath)
     if f in set(ld): #the names are equal
         print("Original name is good: ",f)
@@ -136,10 +138,11 @@ def join_case_insensitive(fpath,f):
         print ("Cannot find '",f,"' file in ",fpath)
         return ""
 
+
 def find_texture_path(orbiterpath,tex_string):
     '''
     Finds texture file in texture directories
-    
+
     Returns the full texture file path if it exists
     "" if doesn't
     '''
@@ -185,6 +188,7 @@ def find_texture_path(orbiterpath,tex_string):
         print ("Warning! File",tex_string," not exists or cannot be read in:",fpath)
         return ""
 
+
 def create_materials(groups,materials,textures,orbiterpath,param_vector):
     '''
     To create materials, some steps has to be done:
@@ -214,7 +218,7 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
     print("\nUnique pairs:",len(matpairset),"\n",matpairset)
     if VERBOSE_OUT:
         print(matpair)
-    
+
     #2.==============create textures=======================
     tx=[]
     tex_load_fails=0
@@ -229,22 +233,22 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
             fpath=find_texture_path(orbiterpath,textures[n][0])
             if fpath=="":
                 tex_load_fails=tex_load_fails+1
-                continue 
+                continue
             #Trying to load data
             try:
                 img=bpy.data.images.load(fpath)
             except:
                 print("Can not load image, file is possibly corrupted : ",fpath)
                 tex_load_fails=tex_load_fails+1
-                continue 
+                continue
         else:
             tex_load_fails=tex_load_fails+1
             continue
         tx[n].image=img
         tx[n].use_alpha=True
 
-    #3.=================Create materials=====================    
-    print("creating materials") 
+    #3.=================Create materials=====================
+    print("creating materials")
     n=0
     matt=[]
     mat_index_out_of_range=False
@@ -271,8 +275,8 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
                 matt[n].use_transparency=True
             #specular component
             matt[n].specular_color=materials[idx_mat][3][:3]
-            matt[n].specular_alpha=materials[idx_mat][3][3]  
-            
+            matt[n].specular_alpha=materials[idx_mat][3][3]
+
             raise_small_hardness=param_vector[2]
             default_hardeness=param_vector[3]
             if len(materials[idx_mat][3])==5:
@@ -287,12 +291,12 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
             if import_emmissive:
                 emm_c=materials[idx_mat][4][:3]
                 matt[n].emit=(emm_c[0]+emm_c[1]+emm_c[2])/3
-        
+
             #Adding texture to material
             if idx_tex>=0:
                 mtex=matt[n].texture_slots.add()
                 mtex.texture=tx[idx_tex]
-                mtex.texture_coords="UV" 
+                mtex.texture_coords="UV"
                 #mtex.map_colordiff = True
                 #mtex.map_alpha = True
                 #mtex.map_coloremission = True
@@ -315,10 +319,11 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
     if mat_index_out_of_range:
         print("WARNNG! Material numbers of some GEOMs are out of range, see above!")
 
+
 def extract_orbpath_from_filename(fname):
     '''
     Extract Orbiter path from file name
-    The function assumes that Orbiter directory is 
+    The function assumes that Orbiter directory is
     the parent of the first "Meshes" directory.
 
     It returns path on success; empty string on fail
@@ -339,12 +344,11 @@ def extract_orbpath_from_filename(fname):
     else:
         print("Orbiter path found: ",s)
     return s
-        
 
 
-#load mesh function
+
 def load_msh(filename,param_vector):
-    '''Read MSH file'''
+    '''Read MSH file. Main import function'''
 
     convert_coords=param_vector[0]
     add_missing_uvs=param_vector[4]
@@ -373,7 +377,7 @@ def load_msh(filename,param_vector):
     textures=[]     #[texture filename, texture name]
     while True:
         s=file.readline()
-        if s=='': 
+        if s=='':
             break;
         v=s.split()
         if len(v)==0:
@@ -383,7 +387,7 @@ def load_msh(filename,param_vector):
         if v[0]=="GROUPS":
             print("------------------------Reading groups:----------------------------")
             n_groups=int(v[1]);
-            
+
             n_mat=0; n_tex=0 #group material and texture
             label=""
             while n_grp<n_groups:
@@ -397,7 +401,7 @@ def load_msh(filename,param_vector):
                 if v1[0]=="MATERIAL":
                     n_mat=int(v1[1].rstrip(";"))  #rstrip is for buggy files with ";" after digit
                 if v1[0]=="TEXTURE":
-                    n_tex=int(v1[1].rstrip(";"))  
+                    n_tex=int(v1[1].rstrip(";"))
 
                 #Reading geometry
                 if v1[0]=="GEOM":
@@ -405,7 +409,7 @@ def load_msh(filename,param_vector):
                     tri=[]
                     norm=[]
                     uv=[]
-                    
+
                     nv=int(v1[1])
                     nt=int(v1[2].rstrip(";"))
                     if VERBOSE_OUT:
@@ -420,25 +424,25 @@ def load_msh(filename,param_vector):
                         #    print (v2)
                         if convert_coords:
                             vtx.append([-float(v2[0]),-float(v2[2]),float(v2[1])])# convert from left-handed coord system
-                        else: 
-                            vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #without conversion 
+                        else:
+                            vtx.append([float(v2[0]),float(v2[1]),float(v2[2])]) #without conversion
                         if len(v2)>5: #there are normals (not vtx+uvs only)
                             #should I convert the normals?
                             norm.append([float(v2[3]),float(v2[4]),float(v2[5])])
-                        
+
                         convert_uvs=True; ##test mode= uvs without conversion
                         if len(v2)==8: #there are normals and uvs
                             has_uvs=True;
                             if convert_uvs:
-                                #in Blender, (0,0) is the upper-left corner. 
+                                #in Blender, (0,0) is the upper-left corner.
                                 #in Orbiter -- lower-left corner. So I must invert V axis
-                                uv.append([float(v2[6]),1.0-float(v2[7])])    
+                                uv.append([float(v2[6]),1.0-float(v2[7])])
                             else:
                                 uv.append([float(v2[6]),float(v2[7])])
                         elif len(v2)==5: #there are only uvs
                             has_uvs=True;
                             if convert_uvs:
-                                uv.append([float(v2[3]),1.0-float(v2[4])])    
+                                uv.append([float(v2[3]),1.0-float(v2[4])])
                             else:
                                 uv.append([float(v2[3]),float(v2[4])])
                         elif (add_missing_uvs or has_uvs) and (len(v2)==6 or len(v2)==3): #Adding zero UVs for buggy meshes with incomplete UVs (XR5 etc)
@@ -463,7 +467,7 @@ def load_msh(filename,param_vector):
                     obj=create_mesh(label,vtx,tri,norm,uv,param_vector)
                     groups.append([label,n_mat,n_tex,nv,nt,obj])
                     label=""
-        #--------------Reading MATERIALS section-----------------------        
+        #--------------Reading MATERIALS section-----------------------
         elif v[0]=="MATERIALS":
             n_materials=int(v[1])
             print("-------Reading Materials section,nmats=",n_materials,"------------")
@@ -488,15 +492,15 @@ def load_msh(filename,param_vector):
             n_textures=int(v[1]);
             for i in range(n_textures):
                 textures.append([file.readline().split()[0],"ORBTexture"+str(i)]) #split to get rid of "D"s
-       
 
-   
+
+
     print("");
     print("==========================File reading summary====================================")
     print("Headers: groups=",n_groups," materials=",n_materials," textures=",n_textures)
-    if VERBOSE_OUT: 
+    if VERBOSE_OUT:
         print("\nData:\n-----------Groups:------------\n",groups)
-        print("-----------------Materials:------------\n",materials) 
+        print("-----------------Materials:------------\n",materials)
         print("------------------Textures:------------\n",textures)
     print("\nReal groups No=",len(groups),"; materials:",len(materials),"; textures=",len(textures))
     file.close() #end reading file
@@ -507,17 +511,18 @@ def load_msh(filename,param_vector):
 from bpy.props import *
 from io_utils import ImportHelper, ExportHelper
 
+
 class IMPORT_OT_msh(bpy.types.Operator, ImportHelper):
     '''Import MSH Operator.'''
     bl_idname= "import_scene.msh"
     bl_label= "Import MSH"
     bl_description= "Import an Orbiter mesh (.msh)"
     bl_options= {'REGISTER', 'UNDO'}
-    
+
     filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
-    
+
     #orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFAULT, subtype="DIR_PATH")
-    
+
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
     show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
     raise_small_hardness= BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
@@ -541,21 +546,22 @@ def import_menu_function(self,context):
 ## EXPORT PART
 ############################################################
 
+
 def export_msh(filepath,convert_coords,apply_modifiers):
-   
+
     nonormal=False
-  
+
     if os.path.splitext(filepath)[1]=="":
         filepath=filepath+".msh"
 
     file=open(filepath,"w")
     file.write("MSHX1\n")
-    ngroups=0 
+    ngroups=0
     for obj in bpy.context.selected_objects:
         if obj.type=='MESH':
             ngroups=ngroups+1
     file.write("GROUPS {}\n".format(ngroups))
-   
+
     mtrls={}
     txtrs={}
 
@@ -569,8 +575,8 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             n=0
             vtx=[]
             faces=[]
-           
-            
+
+
             file.write("LABEL {}\n".format(obj.name))
             # Adding materials and textures
             if len(obj.material_slots)!=0:
@@ -598,17 +604,17 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             #preparing vertices array: coords and normal
             for vert in me.vertices:
                 vtx.append([vert.co*matrix,vert.normal])
-            
+
             has_uv=True;
             if len(me.uv_textures)==0:
                 has_uv=False;
                 print("Mesh ",obj.name,"has not UV map" )
-                
+
             #Creating faces array and finishing vtx array with UVs
             for n in range(len(me.faces)):
                 face=me.faces[n]
-                
-                if has_uv:# 3 UVs 
+
+                if has_uv:# 3 UVs
                     changeface=False
                     fc=[]#face to add
                     for i in range(len(face.vertices)):
@@ -629,7 +635,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
                     if len(fc)==4:
                         faces.append([fc[2],fc[3],fc[0]])
 
-                
+
                 else:#export just faces without uv
                     faces.append(face.vertices[:3]) #first (or alone) triangle
                     if len(face.vertices)==4: #2nd triangle if face is quad
@@ -648,7 +654,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             if (apply_modifiers): #Mesh reading finished; removing temporary mesh with applied modifiers
                 bpy.data.meshes.remove(me)
 
-            #write GEOM section 
+            #write GEOM section
             if nonormal:
                 file.write("NONORMAL\n")
             file.write("GEOM {} {}\n".format(len(vtx),len(faces)))
@@ -658,7 +664,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
                     if not nonormal: #I think normal coords should be converted too
                         file.write(" {} {} {}".format(-v[1][0],v[1][2],-v[1][1]))
                     if has_uv:
-                        file.write(" {} {}".format(v[2][0],1-v[2][1]))        
+                        file.write(" {} {}".format(v[2][0],1-v[2][1]))
                     file.write("\n")
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[2],f[1]))
@@ -668,7 +674,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
                     if not nonormal:
                         file.write(" {} {} {}".format(v[1][0],v[1][1],v[1][2]))
                     if has_uv:
-                        file.write(" {} {}".format(v[2][0],1-v[2][1]))        
+                        file.write(" {} {}".format(v[2][0],1-v[2][1]))
                     file.write("\n")
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[1],f[2]))
@@ -682,10 +688,10 @@ def export_msh(filepath,convert_coords,apply_modifiers):
     temp_m=sorted(mtrls.items(),key=lambda x: x[1])
     for m in temp_m:
         file.write("{}\n".format(m[0]))
-    
+
     for m in temp_m:
         file.write("MATERIAL {}\n".format(m[0]))
-        
+
         mat=bpy.data.materials[m[0]]
         dc=mat.diffuse_color
         file.write("{} {} {} {}\n".format(dc[0],dc[1],dc[2],mat.alpha))
@@ -695,7 +701,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
         file.write("{} {} {} {}\n".format(dc[0]*mat.emit,dc[1]*mat.emit,dc[2]*mat.emit,mat.alpha))
     #=====Write TEXTURES section ======
     file.write("TEXTURES {}\n".format(len(txtrs)))
-    
+
     v=os.path.split(filepath)
     mshdir=v[0]
     mshname=os.path.splitext(v[1])[0]
@@ -706,7 +712,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
     for t in temp_t:
         tex=bpy.data.textures[t[0]]
         img_fp=tex.image.filepath
-        
+
         tex_fname=""
 
         if img_fp=="Untitled": #new name from tex name
@@ -717,10 +723,10 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             if tex.image.file_format=="":#if no format (dds) it will be saved as png.
                 tex_fname=os.path.splitext(tex_fname)[0]+".png"
             tex.image.save_render(os.path.join(texpath,tex_fname))
-        
-        file.write("{}\n".format(ntpath.join(texdir,os.path.splitext(tex_fname)[0]+".dds"))) #local dir + fname+'dds' 
 
-    file.close()                
+        file.write("{}\n".format(ntpath.join(texdir,os.path.splitext(tex_fname)[0]+".dds"))) #local dir + fname+'dds'
+
+    file.close()
 
 
 class EXPORT_OT_msh(bpy.types.Operator, ExportHelper):
@@ -728,22 +734,23 @@ class EXPORT_OT_msh(bpy.types.Operator, ExportHelper):
     bl_idname="export_mesh.msh"
     bl_label="Export MSH"
     bl_descriptiom="Export an Orbiter mesh (.msh)"
-    
+
     filename_ext=".msh"
-    
+
     filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
     apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=False)
 
-   
+
     def execute(self,context):
         print("Export execute")
         export_msh(self.filepath,self.convert_coords,self.apply_modifiers)
         return {"FINISHED"}
 
+
 def export_menu_function(self,context):
     self.layout.operator(EXPORT_OT_msh.bl_idname,text="Orbiter Mesh (.msh)")
- 
+
 ###########################################
 ## END OF EXPORT PART
 ############################################
@@ -752,14 +759,20 @@ def export_menu_function(self,context):
 
 def register():
     print("registering...")
+    bpy.utils.register_module(__name__)
+
     bpy.types.INFO_MT_file_import.append(import_menu_function)
     bpy.types.INFO_MT_file_export.append(export_menu_function)
- 
+
+
 def unregister():
     print("unregistering...")
+    bpy.utils.unregister_module(__name__)
+
     bpy.types.INFO_MT_file_import.remove(import_menu_function)
     bpy.types.INFO_MT_file_export.remove(export_menu_function)
- 
+
+
 if __name__ == "__main__":
     register()
 
