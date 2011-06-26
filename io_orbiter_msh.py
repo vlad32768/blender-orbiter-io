@@ -52,11 +52,11 @@ bl_info = {
     "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
     "version": (1,0),
-    "blender": (2, 5, 6),
-    "api": 34987,
+    "blender": (2, 5, 8),
+    "api": 37825,
     "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
-    "warning": 'Beta 2 version', # used for warning icon and text in addons panel
+    "warning": '', # used for warning icon and text in addons panel
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
     "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
     "description": "Imports and exports Orbiter mesh file (as well as materials and textures)."}
@@ -509,10 +509,10 @@ def load_msh(filename,param_vector):
 
 #for operator class properties
 from bpy.props import *
-from io_utils import ImportHelper, ExportHelper
+#from io_utils import ImportHelper, ExportHelper
 
 
-class IMPORT_OT_msh(bpy.types.Operator, ImportHelper):
+class IMPORT_OT_msh(bpy.types.Operator):
     '''Import MSH Operator.'''
     bl_idname= "import_scene.msh"
     bl_label= "Import MSH"
@@ -529,11 +529,17 @@ class IMPORT_OT_msh(bpy.types.Operator, ImportHelper):
     default_hardness=IntProperty(name="Hardness",description="Smallest hardness",default=20)
 
     add_missing_uvs= BoolProperty(name="Add missing UVs", description="Add missing UVs in buggy meshes (XR5 etc) USE IT ONLY TO AVOID CRASH", default=False,options={"HIDDEN"})
+
     def execute(self,context):
         print("execute")
         param_vector=[self.convert_coords,self.show_single_sided,self.raise_small_hardness,self.default_hardness,self.add_missing_uvs]
         load_msh(self.filepath,param_vector)
         return{"FINISHED"}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 def import_menu_function(self,context):
@@ -729,7 +735,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
     file.close()
 
 
-class EXPORT_OT_msh(bpy.types.Operator, ExportHelper):
+class EXPORT_OT_msh(bpy.types.Operator):
     '''Export MSH Operator'''
     bl_idname="export_mesh.msh"
     bl_label="Export MSH"
@@ -747,6 +753,10 @@ class EXPORT_OT_msh(bpy.types.Operator, ExportHelper):
         export_msh(self.filepath,self.convert_coords,self.apply_modifiers)
         return {"FINISHED"}
 
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 def export_menu_function(self,context):
     self.layout.operator(EXPORT_OT_msh.bl_idname,text="Orbiter Mesh (.msh)")
