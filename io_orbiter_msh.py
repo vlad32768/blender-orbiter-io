@@ -575,7 +575,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
         if obj.type=='MESH':
             matrix=obj.matrix_world
             if (apply_modifiers):
-                me = obj.create_mesh(bpy.context.scene, True, "PREVIEW")
+                me = obj.to_mesh(bpy.context.scene, True, "PREVIEW")
             else:
                 me=obj.data
             n=0
