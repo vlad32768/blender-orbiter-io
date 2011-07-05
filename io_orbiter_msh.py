@@ -571,7 +571,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
     mtrls={}
     txtrs={}
 
-    for obj in bpy.context.selected_objects:
+    for obj in sorted(bpy.context.selected_objects, key=lambda ar:ar.name):
         if obj.type=='MESH':
             matrix=obj.matrix_world
             if (apply_modifiers):
