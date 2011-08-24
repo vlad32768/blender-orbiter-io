@@ -556,7 +556,7 @@ def import_menu_function(self,context):
 ############################################################
 
 
-def export_msh(filepath,convert_coords,apply_modifiers):
+def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
 
     nonormal=False
 
@@ -588,6 +588,15 @@ def export_msh(filepath,convert_coords,apply_modifiers):
             else:
                 me=obj.data
             n=0
+
+            if delete_orphans:
+                bpy.ops.object.select_name(name=obj.name,extend=True)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_by_number_vertices(type='OTHER')
+                bpy.ops.mesh.delete() #default type='VERT'
+                bpy.ops.object.mode_set()
+
+
             vtx=[]
             faces=[]
 
@@ -755,11 +764,12 @@ class EXPORT_OT_msh(bpy.types.Operator):
     filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
     apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=False)
+    delete_orphans = BoolProperty(name="Delete orphan vertices", description="Delete orphan vertices (Recommender if you get 'List index out of range' error)", default=False)
 
 
     def execute(self,context):
         print("Export execute")
-        export_msh(self.filepath,self.convert_coords,self.apply_modifiers)
+        export_msh(self.filepath,self.convert_coords,self.apply_modifiers,self.delete_orphans)
         return {"FINISHED"}
 
     def invoke(self, context, event):
