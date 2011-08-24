@@ -26,6 +26,9 @@
 # Notes on .msh export
 #
 # 1. The script exports selected objects. To export the whole scene, select all objects by pressing "a".
+# 1a. Blender has to be in object mode before exporting ( to avoid some Python API issues and, of course, to 
+#     select mesh objects for exports). If not, object mode will be set automatically during export.
+#    
 # 2. Coordinate system: The script does conversion to left handed coordinate system, so there is the proper way to place your model in Blender when you start modeling:
 #    -- Y axis is the main thrust direction;
 #    -- Z axis points UP;
@@ -52,13 +55,13 @@ bl_info = {
     "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
     "version": (1,0),
-    "blender": (2, 5, 8),
-    "api": 37825,
+    "blender": (2, 5, 9),
+    "api": 39669,
     "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
     "warning": '', # used for warning icon and text in addons panel
-    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.5/Py/Scripts/My_Script",
-    "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=#&group_id=#&atid=#",
+    "wiki_url": "http://www.orbiter-forum.com/showthread.php?t=18661",
+    "tracker_url": "http://www.orbiter-forum.com/showthread.php?t=18661",
     "description": "Imports and exports Orbiter mesh file (as well as materials and textures)."}
 
 
@@ -570,6 +573,12 @@ def export_msh(filepath,convert_coords,apply_modifiers):
 
     mtrls={}
     txtrs={}
+
+    if bpy.context.mode!='OBJECT': #revert to object mode
+        bpy.ops.object.mode_set()  #'OBJECT' is the default mode
+        print(""" WARNING! You are exporting while not in object mode!
+        Exit to object mode and select meshes
+        that you want to export.""")
 
     for obj in sorted(bpy.context.selected_objects, key=lambda ar:ar.name):
         if obj.type=='MESH':
