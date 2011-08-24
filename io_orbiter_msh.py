@@ -609,7 +609,7 @@ def export_msh(filepath,convert_coords,apply_modifiers):
 
             #preparing vertices array: coords and normal
             for vert in me.vertices:
-                vtx.append([vert.co*matrix,vert.normal])
+                vtx.append([matrix * vert.co,vert.normal])
 
             has_uv=True;
             if len(me.uv_textures)==0:
