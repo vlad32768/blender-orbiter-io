@@ -94,13 +94,13 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
     # from_pydata doesn't work correctly, it swaps vertices in some triangles
     #me.from_pydata(verts,[], faces)
     me.vertices.add(len(verts))
-    me.faces.add(len(faces))
+    me.tessfaces.add(len(faces))
     #me.vertices.foreach_set("co", verts)
     #me.faces.foreach_set("vertices_raw", unpackList(faces))
     for i in range(len(verts)):
         me.vertices[i].co=verts[i]
     for i in range(len(faces)):
-        me.faces[i].vertices=faces[i]
+        me.tessfaces[i].vertices=faces[i]
 
     #there is something wrong with normals in Blender
     #if (norm!=[]):
@@ -110,7 +110,7 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
 
     if uv!=[]:
         #Loading UV tex coords
-        uvtex=me.uv_textures.new()#create uvset
+        uvtex=me.tessface_uv_textures.new()#create uvset
         for i in range(len(faces)):
             uvtex.data[i].uv1=uv[faces[i][0]]
             uvtex.data[i].uv2=uv[faces[i][1]]
@@ -589,7 +589,10 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
                 me=obj.data
             n=0
 
-            if delete_orphans:
+            me.update(calc_tessface=True) # Create tessfaces before export
+
+            #TODO: test delete orphans with bmesh
+            if delete_orphans: #delete orphans in edit mode
                 bpy.ops.object.select_name(name=obj.name,extend=True)
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_by_number_vertices(type='OTHER')
@@ -630,19 +633,19 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
                 vtx.append([matrix * vert.co,vert.normal])
 
             has_uv=True;
-            if len(me.uv_textures)==0:
+            if len(me.tessface_uv_textures)==0:
                 has_uv=False;
                 print("Mesh ",obj.name,"has not UV map" )
 
             #Creating faces array and finishing vtx array with UVs
-            for n in range(len(me.faces)):
-                face=me.faces[n]
+            for n in range(len(me.tessfaces)):
+                face=me.tessfaces[n]
 
                 if has_uv:# 3 UVs
                     changeface=False
                     fc=[]#face to add
                     for i in range(len(face.vertices)):
-                        uvs=me.uv_textures[0].data[n].uv_raw[(2*i):(2*i+2)]
+                        uvs=me.tessface_uv_textures[0].data[n].uv_raw[(2*i):(2*i+2)]
                         idx_vert=face.vertices[i]
                         if len(vtx[idx_vert])==2: #no UVs yet, add idx_vert  to fc and uvs to vert
                             vtx[idx_vert].append(uvs)
