@@ -54,9 +54,9 @@ VERBOSE_OUT = False;
 bl_info = {
     "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
-    "version": (1,0),
-    "blender": (2, 5, 9),
-    "api": 39669,
+    "version": (1,1),
+    "blender": (2, 6, 3),
+    "api": 46166,
     "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
     "warning": '', # used for warning icon and text in addons panel
@@ -78,6 +78,7 @@ import ntpath
 #TODO: Make default material for MATERIAL 0 GEOMs if there are any
 #TODO: GEOMs without MATERIAL and TEXTURE should inherit MATERIAL and TEXTURE from previous GEOMs. Now they are imported without materials
 
+#TODO: It seems that tessfaces are always tris, no quads. So I should remove quads handling in import and export
 
 def create_mesh(name,verts,faces,norm,uv,param_vector):
     '''Function that creates mesh from loaded data'''
