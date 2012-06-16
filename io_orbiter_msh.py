@@ -80,6 +80,10 @@ import ntpath
 
 #TODO: It seems that tessfaces are always tris, no quads. So I should remove quads handling in import and export
 
+#TODO: Fix crash on empty material slot
+#TODO: Fix crash on enpty texture slot or tex without filename
+
+
 def create_mesh(name,verts,faces,norm,uv,param_vector):
     '''Function that creates mesh from loaded data'''
 
@@ -356,6 +360,7 @@ def load_msh(filename,param_vector):
 
     convert_coords=param_vector[0]
     add_missing_uvs=param_vector[4]
+    use_parent_empty=param_vector[5]
 
     orbiterpath=ORBITER_PATH_DEFAULT
     s=extract_orbpath_from_filename(filename)
@@ -379,6 +384,11 @@ def load_msh(filename,param_vector):
     groups=[]       #groups description [label(str),mat(int),tex(int),nv(int),nt(int),obj(bpy.data.object)]
     materials=[]    #materials description [name,[diff RGBA],[amb RGBA],[spec RGBAP],[emit RGBA]]
     textures=[]     #[texture filename, texture name]
+
+    if use_parent_empty:
+        parent_empty=bpy.data.objects.new(os.path.split(filename)[1],None)
+        bpy.context.scene.objects.link(parent_empty)
+
     while True:
         s=file.readline()
         if s=='':
@@ -469,6 +479,11 @@ def load_msh(filename,param_vector):
                     if label=='':
                         label="ORBGroup"+str(n_grp)
                     obj=create_mesh(label,vtx,tri,norm,uv,param_vector)
+                    #parenting to empty
+
+                    if use_parent_empty:
+                        obj.parent=parent_empty
+
                     groups.append([label,n_mat,n_tex,nv,nt,obj])
                     label=""
         #--------------Reading MATERIALS section-----------------------
@@ -530,13 +545,14 @@ class IMPORT_OT_msh(bpy.types.Operator):
     convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
     show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
     raise_small_hardness= BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
+    use_parent_empty = BoolProperty(name="Use parent Empty", description="Create an Empty object and make it parent to imported meshes (Recommended)", default=True)
     default_hardness=IntProperty(name="Hardness",description="Smallest hardness",default=20)
 
     add_missing_uvs= BoolProperty(name="Add missing UVs", description="Add missing UVs in buggy meshes (XR5 etc) USE IT ONLY TO AVOID CRASH", default=False,options={"HIDDEN"})
 
     def execute(self,context):
         print("execute")
-        param_vector=[self.convert_coords,self.show_single_sided,self.raise_small_hardness,self.default_hardness,self.add_missing_uvs]
+        param_vector=[self.convert_coords, self.show_single_sided, self.raise_small_hardness, self.default_hardness, self.add_missing_uvs, self.use_parent_empty]
         load_msh(self.filepath,param_vector)
         return{"FINISHED"}
 
