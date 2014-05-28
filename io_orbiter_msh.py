@@ -706,9 +706,6 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
                 print(faces)
             print("vtx: ",len(vtx),"  faces:",len(faces))
 
-            if (apply_modifiers): #Mesh reading finished; removing temporary mesh with applied modifiers
-                bpy.data.meshes.remove(me)
-
             #write GEOM section
             if nonormal:
                 file.write("NONORMAL\n")
@@ -733,6 +730,9 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
                     file.write("\n")
                 for f in faces:
                     file.write("{} {} {}\n".format(f[0],f[1],f[2]))
+
+            if (apply_modifiers): #Mesh reading finished; removing temporary mesh with applied modifiers
+                bpy.data.meshes.remove(me)
     #write other sections
     print("===Materials summary====")
     print(mtrls)
