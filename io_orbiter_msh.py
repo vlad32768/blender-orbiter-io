@@ -67,6 +67,7 @@ bl_info = {
 
 
 import bpy
+import bmesh
 
 import io #file i/o
 import os
@@ -613,17 +614,20 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
                 me=obj.data
             n=0
 
-            me.update(calc_tessface=True) # Create tessfaces before export
-
             #TODO: test delete orphans with bmesh
             if delete_orphans: #delete orphans in edit mode
-                bpy.ops.object.select_name(name=obj.name,extend=True)
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_by_number_vertices(type='OTHER')
-                bpy.ops.mesh.delete() #default type='VERT'
-                bpy.ops.object.mode_set()
+                bm = bmesh.new()
+                #me=obj.data
+                bm.from_mesh(me)
 
+                vrt = [v for v in bm.verts if len(v.link_faces) == 0] #new orphan remove with bmesh API
+                print(vrt)
+                bmesh.ops.delete(bm,geom=vrt,context=1)
 
+                bm.to_mesh(me)
+                bm.free
+
+            me.update(calc_tessface=True) # Create tessfaces before export
             vtx=[]
             faces=[]
 
