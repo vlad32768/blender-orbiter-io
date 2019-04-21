@@ -49,8 +49,8 @@ ORBITER_PATH_DEFAULT="f:\\fs\\orbiter2010" #If module can't autodetect Orbiter i
 #ORBITER_PATH_DEFAULT="/home/vlad/programs/orbiter"
 
 MESH_INDEX_DIGITS=4    #Number of digits in Mesh name index (import)
-VERBOSE_OUT = False;
-#VERBOSE_OUT = True;
+VERBOSE_OUT = False
+#VERBOSE_OUT = True
 
 bl_info = {
     "name": "Orbiter mesh (.msh)",
@@ -184,7 +184,7 @@ def find_texture_path(orbiterpath,tex_string):
         tempstr=v1[0]
         if tempstr=="":
             break
-    print(v);
+    print(v)
     for texdir in ("Textures","Textures2"):
         fpath=os.path.join(orbiterpath,texdir)
         if not(os.access(fpath,os.F_OK)):
@@ -381,7 +381,7 @@ def extract_orbpath_from_filename(fname):
             break
         if v[1]=="":#path splitted to root directory, search fails
             s=""
-            break;
+            break
 
     if s=='':
         print("WARNING! Orbiter path not found!")
@@ -406,7 +406,7 @@ def load_msh(filename,param_vector):
     print("filepath=",filename,"orbiterpath=",orbiterpath)
 
     file=open(filename,"r")
-    s=file.readline();
+    s=file.readline()
     if s!='MSHX1\n':
         print("This file is not orbiter mesh: ",s)
         return
@@ -429,7 +429,7 @@ def load_msh(filename,param_vector):
     while True:
         s=file.readline()
         if s=='':
-            break;
+            break
         v=s.split()
         if len(v)==0:
             continue # skip empty lines
@@ -437,12 +437,12 @@ def load_msh(filename,param_vector):
         #------Reading GROUPS section-------------
         if v[0]=="GROUPS":
             print("------------------------Reading groups:----------------------------")
-            n_groups=int(v[1]);
+            n_groups=int(v[1])
 
             n_mat=0; n_tex=0 #group material and texture
             label=""
             while n_grp<n_groups:
-                s1=file.readline();
+                s1=file.readline()
                 v1=s1.split()
 
                 #if v1[0]=="NONORMAL":
@@ -465,10 +465,10 @@ def load_msh(filename,param_vector):
                     nt=int(v1[2].rstrip(";"))
                     if VERBOSE_OUT:
                         print ("Group No:",n_grp," verts=",nv," tris=",nt)
-                    has_uvs=False;   # Flag to fix groups with missing UVs
+                    has_uvs=False   # Flag to fix groups with missing UVs
                     for n in range(nv):
-                        s2=file.readline();
-                        v2=s2.split();
+                        s2=file.readline()
+                        v2=s2.split()
                         #print(v2);
                         #if label=="cargodooroutL":
                         #    print("#####RAW DATA OF GEOM: ",label)
@@ -481,9 +481,9 @@ def load_msh(filename,param_vector):
                             #should I convert the normals?
                             norm.append([float(v2[3]),float(v2[4]),float(v2[5])])
 
-                        convert_uvs=True; ##test mode= uvs without conversion
+                        convert_uvs=True ##test mode= uvs without conversion
                         if len(v2)==8: #there are normals and uvs
-                            has_uvs=True;
+                            has_uvs=True
                             if convert_uvs:
                                 #in Blender, (0,0) is the upper-left corner.
                                 #in Orbiter -- lower-left corner. So I must invert V axis
@@ -491,7 +491,7 @@ def load_msh(filename,param_vector):
                             else:
                                 uv.append([float(v2[6]),float(v2[7])])
                         elif len(v2)==5: #there are only uvs
-                            has_uvs=True;
+                            has_uvs=True
                             if convert_uvs:
                                 uv.append([float(v2[3]),1.0-float(v2[4])])
                             else:
@@ -502,8 +502,8 @@ def load_msh(filename,param_vector):
                             uv.append([0.0,0.0])
 
                     for n in range(nt): #read triangles
-                        s2=file.readline();
-                        v2=s2.split();
+                        s2=file.readline()
+                        v2=s2.split()
                         if convert_coords:
                             tri.append([int(v2[0]),int(v2[2]),int(v2[1])]) #reverted triangle
                         else:
@@ -512,7 +512,7 @@ def load_msh(filename,param_vector):
                     #print("Length: vtx={} norm={} uv={} tri={}".format(len(vtx),len(norm),len(uv),len(tri)))
                     #print (vtx)
                     #print(norm)
-                    n_grp=n_grp+1;
+                    n_grp=n_grp+1
                     if label=='':
                         label="ORBGroup"+str(n_grp)
                     if add_mesh_index:     #adding an index
@@ -534,7 +534,7 @@ def load_msh(filename,param_vector):
                 materials.append([file.readline().strip()])
             #material properties
             for i in range (n_materials):
-                file.readline(); # TODO: material name checking
+                file.readline() # TODO: material name checking
                 for n in range(4):
                     s1=file.readline()
                     v1=s1.split()
@@ -547,13 +547,13 @@ def load_msh(filename,param_vector):
         #---------------Reading TEXTURES section------------------
         elif v[0]=="TEXTURES":
             print("-----------Reading TEXTURES section---------------")
-            n_textures=int(v[1]);
+            n_textures=int(v[1])
             for i in range(n_textures):
                 textures.append([file.readline().split()[0],"ORBTexture"+str(i)]) #split to get rid of "D"s
 
 
 
-    print("");
+    print("")
     print("==========================File reading summary====================================")
     print("Headers: groups=",n_groups," materials=",n_materials," textures=",n_textures)
     if VERBOSE_OUT:
@@ -694,9 +694,9 @@ def export_msh(filepath,convert_coords,apply_modifiers,delete_orphans):
             for vert in me.vertices:
                 vtx.append([matrix * vert.co,vert.normal])
 
-            has_uv=True;
+            has_uv=True
             if len(me.tessface_uv_textures)==0:
-                has_uv=False;
+                has_uv=False
                 print("Mesh ",obj.name,"has not UV map" )
 
             #Creating faces array and finishing vtx array with UVs
