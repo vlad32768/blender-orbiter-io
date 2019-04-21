@@ -55,12 +55,12 @@ VERBOSE_OUT = False;
 bl_info = {
     "name": "Orbiter mesh (.msh)",
     "author": "vlad32768",
-    "version": (1,1),
-    "blender": (2, 6, 3),
+    "version": (1,2),
+    "blender": (2, 80, 0),
     "api": 46166,
     "category": "Import-Export",
     "location": "File > Import > Orbiter mesh (.msh); File > Export > Orbiter mesh (.msh)",
-    "warning": '', # used for warning icon and text in addons panel
+    "warning": "", # used for warning icon and text in addons panel
     "wiki_url": "http://www.orbiter-forum.com/showthread.php?t=18661",
     "tracker_url": "http://www.orbiter-forum.com/showthread.php?t=18661",
     "description": "Imports and exports Orbiter mesh file (as well as materials and textures)."}
@@ -95,33 +95,51 @@ def create_mesh(name,verts,faces,norm,uv,param_vector):
     ob = bpy.data.objects.new(name, me)
     ob.location =(0,0,0) #origin
     # Link object to scene
-    bpy.context.scene.objects.link(ob)
+    bpy.context.scene.collection.objects.link(ob)
     if show_single_sided:
         me.show_double_sided=False
-    # from_pydata doesn't work correctly, it swaps vertices in some triangles
-    #me.from_pydata(verts,[], faces)
-    me.vertices.add(len(verts))
-    me.tessfaces.add(len(faces))
-    #me.vertices.foreach_set("co", verts)
-    #me.faces.foreach_set("vertices_raw", unpackList(faces))
-    for i in range(len(verts)):
-        me.vertices[i].co=verts[i]
-    for i in range(len(faces)):
-        me.tessfaces[i].vertices=faces[i]
+    # from_pydata doesn't work correctly, it swaps vertices in some triangles (upd: possibly works well in 2.8)
+    me.from_pydata(verts,[], faces)
 
-    #there is something wrong with normals in Blender
-    #if (norm!=[]):
-    #    for i in range(len(norm)):
-    #        me.vertices[i].normal=norm[i]
+    #------ from_pydata workaround using tessfaces (doesn-t work in 2.8)
+    # me.vertices.add(len(verts))
+    # me.tessfaces.add(len(faces))
+
+    # for i in range(len(verts)):
+    #     me.vertices[i].co=verts[i]
+    # for i in range(len(faces)):
+    #     me.tessfaces[i].vertices=faces[i]
+    #-----------end of workaround with tessfaces---------
+
+    for f in me.polygons:
+        f.use_smooth=True
+
+    #there is something wrong with normals in Blender. Should I import them?
+    if (norm!=[]):
+        for i in range(len(norm)):
+            me.vertices[i].normal=norm[i]
     #        print (me.vertices[i].normal)
 
+    # Import UVs: In .msh file every vertex has an UV, all "uv islands" are separated
+    # and duplicated, so every mesh loop has an unique vertex with index 
+    # This vertex points at UV coord for corresponding UV Loop
+    # Meshloop is a combination of vertex and edge 
+    # A Russian article about MeshLoops and MeshUVLoops:
+    # https://b3d.interplanety.org/rabota-s-uv-cherez-api-blender/	
+    
+    #TODO: test or set bpy.ops.object.mode_set(mode = 'OBJECT') for mesh(uv)loop access 
+    
     if uv!=[]:
-        #Loading UV tex coords
-        uvtex=me.tessface_uv_textures.new()#create uvset
-        for i in range(len(faces)):
-            uvtex.data[i].uv1=uv[faces[i][0]]
-            uvtex.data[i].uv2=uv[faces[i][1]]
-            uvtex.data[i].uv3=uv[faces[i][2]]
+        uvtex=me.uv_layers.new(do_init=False)
+        for idx,uvloop in enumerate(uvtex.data):
+            uvloop.uv=uv[me.loops[idx].vertex_index]
+
+        # #Loading UV tex coords
+        # uvtex=me.tessface_uv_textures.new()#create uvset
+        # for i in range(len(faces)):
+        #     uvtex.data[i].uv1=uv[faces[i][0]]
+        #     uvtex.data[i].uv2=uv[faces[i][1]]
+        #     uvtex.data[i].uv3=uv[faces[i][2]]
 
     # Update mesh with new data
     me.update(calc_edges=True)
@@ -278,40 +296,56 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
                 print("tex=",textures[idx_tex][1],"idx=",idx_tex)
         if idx_mat>=0: #Don't do anything with .msh MATERIAL 0 indices
             matt.append(bpy.data.materials.new(materials[idx_mat][0]))
-            #diffuse component
-            matt[n].diffuse_color=materials[idx_mat][1][:3]
-            matt[n].alpha=materials[idx_mat][1][3]
-            if materials[idx_mat][1][3]<1.0:
-                matt[n].use_transparency=True
-            #specular component
-            matt[n].specular_color=materials[idx_mat][3][:3]
-            matt[n].specular_alpha=materials[idx_mat][3][3]
 
-            raise_small_hardness=param_vector[2]
-            default_hardeness=param_vector[3]
-            if len(materials[idx_mat][3])==5:
-                if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
-                    matt[n].specular_hardness=default_hardeness
-                else:
-                    matt[n].specular_hardness=materials[idx_mat][3][4]
+            #FIXME: Is it possible to use node material? necessary for ambient and emissive materials
+
+            #diffuse component with alpha in 2.8
+            matt[n].diffuse_color=materials[idx_mat][1][:4]
+            
+            #FIXME: How to use transparency properly in 2.8 eeve?
+            #no distinctive diffuse_alpha component; no use_translucency in 2.8
+            #matt[n].alpha=materials[idx_mat][1][3]
+            #if materials[idx_mat][1][3]<1.0:
+            #    matt[n].use_transparency=True
+            
+            
+            #FIXME: specular component exists but not used in 2.8, possibly deprecated. Specular color depends on lighting.
+            matt[n].specular_color=materials[idx_mat][3][:3]
+            
+            #no specular_alpha component in 2.8
+            #matt[n].specular_alpha=materials[idx_mat][3][3]
+
+            #FIXME: There isn't Hardness param in 2.8; we have specular_intensity and roughness
+
+            # raise_small_hardness=param_vector[2]
+            # default_hardeness=param_vector[3]
+            # if len(materials[idx_mat][3])==5:
+            #     if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
+            #         matt[n].specular_hardness=default_hardeness
+            #     else:
+            #         matt[n].specular_hardness=materials[idx_mat][3][4]
+
             #there aren't different ambient and emissive color component in blender
             #ambient is very often equal to diffuse, it's like amb=1.0 in blender
             #Emmissive component:
-            import_emmissive=True;
+            import_emmissive=False
             if import_emmissive:
                 emm_c=materials[idx_mat][4][:3]
                 matt[n].emit=(emm_c[0]+emm_c[1]+emm_c[2])/3
 
-            #Adding texture to material
-            if idx_tex>=0:
-                mtex=matt[n].texture_slots.add()
-                mtex.texture=tx[idx_tex]
-                mtex.texture_coords="UV"
-                #mtex.map_colordiff = True
-                #mtex.map_alpha = True
-                #mtex.map_coloremission = True
-                #mtex.map_density = True
-                #mtex.mapping = 'FLAT'
+            #There are no texture_slots in 2.8 eeve materials
+            #TODO: Add textures to material
+
+            # #Adding texture to material
+            # if idx_tex>=0:
+            #     mtex=matt[n].texture_slots.add()
+            #     mtex.texture=tx[idx_tex]
+            #     mtex.texture_coords="UV"
+            #     #mtex.map_colordiff = True
+            #     #mtex.map_alpha = True
+            #     #mtex.map_coloremission = True
+            #     #mtex.map_density = True
+            #     #mtex.mapping = 'FLAT'
 
             for grp_idx in pair[1]:
                 groups[grp_idx][5].data.materials.append(matt[n])
@@ -390,7 +424,7 @@ def load_msh(filename,param_vector):
 
     if use_parent_empty:
         parent_empty=bpy.data.objects.new(os.path.split(filename)[1],None)
-        bpy.context.scene.objects.link(parent_empty)
+        bpy.context.scene.collection.objects.link(parent_empty)
 
     while True:
         s=file.readline()
@@ -543,19 +577,19 @@ class IMPORT_OT_msh(bpy.types.Operator):
     bl_description= "Import an Orbiter mesh (.msh)"
     bl_options= {'REGISTER', 'UNDO'}
 
-    filepath= StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
+    filepath: StringProperty(name="File Path", description="Filepath used for importing the MSH file", maxlen=1024, default="")
 
     #orbiterpath= StringProperty(name="Orbiter Path", description="Orbiter spacesim path", maxlen=1024, default=ORBITER_PATH_DEFAULT, subtype="DIR_PATH")
 
-    convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
-    show_single_sided= BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
-    raise_small_hardness= BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
-    use_parent_empty = BoolProperty(name="Use parent Empty", description="Create an Empty object and make it parent to imported meshes (Recommended)", default=True)
-    default_hardness=IntProperty(name="Hardness",description="Smallest hardness",default=20)
+    convert_coords: BoolProperty(name="Convert coordinates", description="Convert coordinates between left-handed and right-handed systems ('yes' highly recomended)", default=True)
+    show_single_sided: BoolProperty(name="Show single-sided", description="Disables 'Double Sided' checkbox, some models look better if enabled", default=True)
+    raise_small_hardness: BoolProperty(name="Raise small hardness", description="Raise small hardness for some models", default=False)
+    use_parent_empty: BoolProperty(name="Use parent Empty", description="Create an Empty object and make it parent to imported meshes (Recommended)", default=True)
+    default_hardness: IntProperty(name="Hardness",description="Smallest hardness",default=20)
 
-    add_mesh_index = BoolProperty(name="Add index to mesh name", description="Add index in front of original mesh name (very useful for re-export)", default=False)
+    add_mesh_index: BoolProperty(name="Add index to mesh name", description="Add index in front of original mesh name (very useful for re-export)", default=False)
 
-    add_missing_uvs= BoolProperty(name="Add missing UVs", description="Add missing UVs in buggy meshes (XR5 etc) USE IT ONLY TO AVOID CRASH", default=False,options={"HIDDEN"})
+    add_missing_uvs: BoolProperty(name="Add missing UVs", description="Add missing UVs in buggy meshes (XR5 etc) USE IT ONLY TO AVOID CRASH", default=False,options={"HIDDEN"})
 
 
     def execute(self,context):
@@ -792,10 +826,10 @@ class EXPORT_OT_msh(bpy.types.Operator):
 
     filename_ext=".msh"
 
-    filepath= StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
-    convert_coords= BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
-    apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=False)
-    delete_orphans = BoolProperty(name="Delete orphan vertices", description="Delete orphan vertices (Recommender if you get 'List index out of range' error)", default=False)
+    filepath: StringProperty(name="File Path", description="Filepath of exported MSH file", maxlen=1024, default="")
+    convert_coords: BoolProperty(name="Convert coordinates", description="Convert coordinates between right-handed and left-handed systems ('yes' highly recomended)", default=True)
+    apply_modifiers: BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=False)
+    delete_orphans: BoolProperty(name="Delete orphan vertices", description="Delete orphan vertices (Recommender if you get 'List index out of range' error)", default=False)
 
 
     def execute(self,context):
@@ -817,20 +851,27 @@ def export_menu_function(self,context):
 
 ############## REGISTER PART#########################3
 
+classes=(
+    IMPORT_OT_msh,
+    EXPORT_OT_msh
+)
+
 def register():
     print("registering...")
-    bpy.utils.register_module(__name__)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
-    bpy.types.INFO_MT_file_import.append(import_menu_function)
-    bpy.types.INFO_MT_file_export.append(export_menu_function)
+    bpy.types.TOPBAR_MT_file_import.append(import_menu_function)
+    bpy.types.TOPBAR_MT_file_export.append(export_menu_function)
 
 
 def unregister():
     print("unregistering...")
-    bpy.utils.unregister_module(__name__)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 
-    bpy.types.INFO_MT_file_import.remove(import_menu_function)
-    bpy.types.INFO_MT_file_export.remove(export_menu_function)
+    bpy.types.TOPBAR_MT_file_import.remove(import_menu_function)
+    bpy.types.TOPBAR_MT_file_export.remove(export_menu_function)
 
 
 if __name__ == "__main__":
