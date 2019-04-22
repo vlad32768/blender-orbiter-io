@@ -297,33 +297,26 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
         if idx_mat>=0: #Don't do anything with .msh MATERIAL 0 indices
             matt.append(bpy.data.materials.new(materials[idx_mat][0]))
 
-            #FIXME: Is it possible to use node material? necessary for ambient and emissive materials
+            matt[n].use_nodes=True
+            
+            prnode=matt[n].node_tree.nodes['Principled BSDF']
 
             #diffuse component with alpha in 2.8
-            matt[n].diffuse_color=materials[idx_mat][1][:4]
+            prnode.inputs['Base Color'].default_value=materials[idx_mat][1][:4]
             
-            #FIXME: How to use transparency properly in 2.8 eeve?
-            #no distinctive diffuse_alpha component; no use_translucency in 2.8
-            #matt[n].alpha=materials[idx_mat][1][3]
-            #if materials[idx_mat][1][3]<1.0:
-            #    matt[n].use_transparency=True
+            #TODO: How to use transparency properly in 2.8 eeve?
+            if materials[idx_mat][1][3]<1.0:
+                matt[n].blend_method='ADD'
             
-            
-            #FIXME: specular component exists but not used in 2.8, possibly deprecated. Specular color depends on lighting.
+            #There isn't Specular color component in Principled BSDF node. Specular color depends on lighting.
             matt[n].specular_color=materials[idx_mat][3][:3]
+
+            prnode.inputs['Specular'].default_value=0.5
+            prnode.inputs['Roughness'].default_value=0.2
+            
             
             #no specular_alpha component in 2.8
             #matt[n].specular_alpha=materials[idx_mat][3][3]
-
-            #FIXME: There isn't Hardness param in 2.8; we have specular_intensity and roughness
-
-            # raise_small_hardness=param_vector[2]
-            # default_hardeness=param_vector[3]
-            # if len(materials[idx_mat][3])==5:
-            #     if raise_small_hardness and (materials[idx_mat][3][4]<default_hardeness):
-            #         matt[n].specular_hardness=default_hardeness
-            #     else:
-            #         matt[n].specular_hardness=materials[idx_mat][3][4]
 
             #there aren't different ambient and emissive color component in blender
             #ambient is very often equal to diffuse, it's like amb=1.0 in blender
@@ -336,16 +329,12 @@ def create_materials(groups,materials,textures,orbiterpath,param_vector):
             #There are no texture_slots in 2.8 eeve materials
             #TODO: Add textures to material
 
-            # #Adding texture to material
-            # if idx_tex>=0:
-            #     mtex=matt[n].texture_slots.add()
-            #     mtex.texture=tx[idx_tex]
-            #     mtex.texture_coords="UV"
-            #     #mtex.map_colordiff = True
-            #     #mtex.map_alpha = True
-            #     #mtex.map_coloremission = True
-            #     #mtex.map_density = True
-            #     #mtex.mapping = 'FLAT'
+            #Adding texture to material
+            if idx_tex>=0:
+                texnode=matt[n].node_tree.nodes.new("ShaderNodeTexImage") #node.bl_idname as a param
+                matt[n].node_tree.links.new(texnode.outputs['Color'],prnode.inputs['Base Color'])
+                texnode.image=tx[idx_tex].image
+                
 
             for grp_idx in pair[1]:
                 groups[grp_idx][5].data.materials.append(matt[n])
